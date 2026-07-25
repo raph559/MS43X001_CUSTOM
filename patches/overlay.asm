@@ -47,6 +47,7 @@
 ; ---------------------------------------------------------------------------
         ORG     0CB545h
 stubA:
+        MOV     R5, 0FE04h           ; save DPP2
         MOV     0FE04h, #010h        ; DPP2 = external RAM
         MOV     R2, #09D00h           ; control block (segment 2 -> DPP2)
         MOV     R10, [R2]             ; magic
@@ -75,6 +76,7 @@ Anext:
         JMPR    UC, Aloop
 Aoff:
 Adone:
+        MOV     0FE04h, R5           ; restore DPP2
         CALLS   0Dh, 029Ah
         RETS
 
@@ -84,6 +86,7 @@ Adone:
 ; ---------------------------------------------------------------------------
         ORG     0CB585h
 stubB:
+        MOV     R5, 0FE04h           ; save DPP2
         MOV     0FE04h, #010h        ; DPP2 = external RAM
         MOV     R2, #09D00h
         MOV     R10, [R2]             ; magic
@@ -112,6 +115,7 @@ Bnext:
         JMPR    UC, Bloop
 Boff:
 Bdone:
+        MOV     0FE04h, R5           ; restore DPP2
         CALLS   0Dh, 0262h
         RETS
 
