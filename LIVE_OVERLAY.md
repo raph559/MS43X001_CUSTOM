@@ -197,11 +197,11 @@ the hand-made edits. The outcome:
   left at stock apart from that row.
 - The fuelling knob is **`ip_af_target_ron98__maf__n`** (0x7D69C): the 6990 rpm column set to
   λ 0.781 for the flames band. There is no injection map on MS43X001 to tune.
-- **Half the tune never reached the engine.** Every e85 table in the release is a byte-identical
-  copy of its RON98 twin, and the blend helper 0D:1850 computes
-  `base + (twin − base)·f/32` with the flex factor — which is 0 because `c_conf_ff` = 0 on this
-  car. So the e85 tables are inert, and the tune's VANOS exhaust-cam edit (112 cells in
-  `ip_cam_sp_e85_ex_pl`, with the live `ip_cam_sp_ron98_ex_pl` untouched) is a **no-op**.
+- **The e85 tables are the car's earlier E85 setup, not dead edits.** The owner ran this car on
+  E85 before the move to SP95, so the e85 tables were the live ones then; with `c_conf_ff` = 0
+  they are now inert. They hold a deliberately different tune (up to 8.6° more advance, ±18° of
+  exhaust cam), so live edits must **not** be mirrored into them. Full analysis in
+  `TUNE_ANALYSIS.md` §3.
 
 **Live set (fits the 736 B with ~104 B spare):**
 
@@ -218,6 +218,11 @@ the hand-made edits. The outcome:
 RON91 (320 B) is left in flash — the octane blend works with one half in RAM. The MBT
 reference (192 B) does not fit either. The VE maps are excluded on purpose: a VE map is the
 load model, so editing it live moves everything at once, whereas a λ target is a bounded knob.
+
+One carry-over is worth raising with the owner: the E85-era exhaust-cam map
+(`ip_cam_sp_e85_ex_pl`, 0x760B4) carries ±18° of cam timing that is not active on SP95, while
+the live `ip_cam_sp_ron98_ex_pl` (0x7629C) is still the release value. Porting it across is a
+bake-time change, not a live one.
 
 ---
 
