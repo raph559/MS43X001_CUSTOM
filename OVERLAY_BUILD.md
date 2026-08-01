@@ -326,30 +326,38 @@ constants, from 0x4B545 up.
 
 ---
 
-## 10. Emulator test plan
+## 10. Emulator test plan — **BLOCKED on the bench, not on the patch**
 
-The bench is described in REPORT.md §9.1: Ghidra 12.1.4 in WSL with the C166 module v1.2.0
-(`XDG_CONFIG_HOME=$HOME/ghidra_emu_cfg`), the NXT-Tronic ms43-c166-emulator, project
-`~/ghidra_projects/MS43EMU2`, program `MS43_430069.bin`, and the script
-`EmuVirtualPlantPhase4Full.java` (18,000 teeth, 14 subsystems, zero divergence).
+The gate before anything goes near the flasher. The bench cannot currently run it: the
+closed-loop script `EmuVirtualPlantPhase4Full` aborts with "Remainder by 0" **on the unmodified
+stock image** (REPORT.md §9.1), and a focused probe shows the calibration read does not come
+back and the script-side memory writes are byte-swapped.
 
-What the overlay test must add:
+What is ready:
 
-1. **Regression first:** run the existing closed-loop script on the *unmodified* car image and
-   on the patched image, and compare the traces. Any divergence in a subsystem that does not
-   read a shadowed table means the stub broke something.
-2. **Shadow substitution:** preload the shadow area with a recognisable pattern (e.g. the
-   ignition map shifted by +1 raw unit), run the closed loop, and confirm the ignition output
-   moves by exactly the expected amount in the regions that read 0x77315 — and does **not**
-   move in the regions that read the flash copy.
-3. **Default-off:** with the magic cleared, the output must be bit-identical to the stock run.
-4. **K-line path:** drive the new DS2 command through the emulator's serial model if the
-   emulator provides one; otherwise test the handler by calling it directly with a crafted
-   frame and check the reply bytes and the RAM contents.
+| Probe | What it does |
+|---|---|
+| `emu/ProbeOverlayReader.java` | the reader 0D:029A on its own, and the stub with the overlay armed - the same bytes and one step up |
+| `emu/ProbeOverlayDiag.java` | diagnostics: where the reader actually read from, the flags, the bytes at candidate addresses |
+| `emu/ProbeOverlayRam.java` | the same test entirely inside the external RAM, so it does not depend on the calibration read at all |
 
-Note the emulator's limits (REPORT.md §9.1): it drives 14 subsystems by direct calls, it does
-not run natural start-up, diagnostics sessions or EEPROM writes, and zero divergence is not
-proof of correctness.
+Run them with `~/emu_runs/run_emu.sh <image.bin> <script.java> <log>` (it clears the Ghidra
+project lock before and after, which a crashed run leaves behind).
+
+The pass condition, once the bench is fixed:
+
+1. **Control** (unmodified stock): the reader returns the calibration byte; the stub cases are
+   the control's own values, because there is no stub.
+2. **Patched**: the reader alone = the calibration byte; the stub with an identical copy in RAM
+   = the same byte (the stub must be transparent); the stub with every byte one step up = one
+   more.
+3. **Regression**: the patched image with the overlay disarmed must behave exactly like the
+   unmodified image in the closed-loop run.
+4. **The DS2 handler** has not been exercised at all: its frame parsing, the upload copy loop
+   and the bind/unbind/revert logic are only desk-checked so far.
+
+**Until 1–3 pass, the image must not be flashed.** The current build
+(`build/CAR_43X001_SP95_STAGE1_OVERLAY.bin`) is a work in progress, not a candidate to flash.
 
 ---
 
