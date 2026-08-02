@@ -1,7 +1,20 @@
 # MS43X001 live-calibration overlay - the built patch
 
-`patches/overlay.asm` is the source, `build/` holds the assembled images. Both are **not**
-ready to flash: the emulator regression is the gate (see OVERLAY_BUILD.md §10).
+`patches/overlay.asm` is the source, `build/` holds the assembled images.
+
+> **Do not flash any image built from this source.** A byte-level review on 2026-10-20 found
+> defects that would crash the ECU at the first redirected table read, with the validity tags
+> still valid (the dangerous failure in REPORT.md §9.4):
+>
+> - the five call sites call segment 0Dh (`CALLS 0Dh, B545h`), but the stubs are in segment 0Ch
+> - the stubs and the handler start at odd addresses (0x4B545, 0x4B585, 0x4B5D5), and the C167
+>   traps on a branch to an odd address. Free flash starts at 0x4B544
+> - the stubs overlap: stub A runs into stub B, and the handler overwrites stub B's `RETS`
+> - the DS2 handler fails on every sub-command: status reads K as a word at the odd address
+>   FB6B (K is at 91B6), upload copies from the wrong source, and every sub-command from 02 up
+>   runs bind, so revert does not revert
+>
+> The source has to be rewritten and tested before anything built from it is flashed.
 
 ## What the patch does
 
@@ -40,10 +53,10 @@ python -I tools/ms43_patch.py bins/CAR_current_43X001_SP95_STAGE1.bin \
 `--allow-overwrite` is required: the five call sites, the dispatcher slot and the CRC range end
 are existing code. The tool lists every overwritten range for review.
 
-The same source also applies to the **stock 430069 image** (`build/MS43_430069_OVERLAY.bin`),
-which is what the emulator can run: stock and MS43X001 share the ignition map addresses and
-call sites, so the stub mechanism can be regression-tested where the emulator's closed-loop
-script works.
+Applying this source to the **stock 430069 image** does not give a valid test image: stock does
+not have these call sites. At those offsets it has other instructions or erased flash, and
+0x1FC8A is a real handler call (`CALLS 0Ah, 9278h`), so the patch overwrites unrelated code
+there.
 
 ## Assembler notes (AS / Macroassembler asl, target 80C167)
 

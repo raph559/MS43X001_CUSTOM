@@ -15,6 +15,10 @@ block are never written.
 calibration data untouched. **The emulator regression is the remaining gate** (§10) — nothing
 goes near the flasher before it passes.
 
+**Status 2026-10-20: do not flash the current build.** A review found that it would crash the
+ECU (wrong call segment, code at odd addresses, overlapping stubs, a broken DS2 handler), and
+that the stock 430069 build patches unrelated code. See `patches/README.md`.
+
 The live set that is implemented (the owner agreed this set):
 
 | Table | Address | Bytes | Reader | Call site |
