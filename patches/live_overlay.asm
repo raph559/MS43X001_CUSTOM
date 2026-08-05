@@ -60,17 +60,89 @@ header: DB      "LTOV"                  ; the signature the app reads with DS2 c
 code_start:
 
 ; ---- the table stubs: one per table, called by its sites' CALLS with R12/R13 = the table's flash address ----
+; A stub substitutes the table's copy only for its own table's address; anything else goes to the reader untouched.
 e_ign98pl:
-        JMPS    0Dh, 029Ah
+        CMP     R12, #3315h
+        JMPR    NZ, to_029A
+        CMP     R13, #001Dh
+        JMPR    NZ, to_029A
+        MOV     R2, #0
+        JMPR    UC, subst8
 e_ign98is:
-        JMPS    0Dh, 029Ah
+        CMP     R12, #35D4h
+        JMPR    NZ, to_029A
+        CMP     R13, #001Dh
+        JMPR    NZ, to_029A
+        MOV     R2, #1
+        JMPR    UC, subst8
 e_af98:
-        JMPS    0Dh, 029Ah
+        CMP     R12, #169Ch
+        JMPR    NZ, to_029A
+        CMP     R13, #001Fh
+        JMPR    NZ, to_029A
+        MOV     R2, #2
+        JMPR    UC, subst8
 e_camin:
-        JMPS    0Dh, 029Ah
+        CMP     R12, #2390h
+        JMPR    NZ, to_029A
+        CMP     R13, #001Dh
+        JMPR    NZ, to_029A
+        MOV     R2, #3
+        JMPR    UC, subst8
 e_camex:
-        JMPS    0Dh, 029Ah
+        CMP     R12, #229Ch
+        JMPR    NZ, to_029A
+        CMP     R13, #001Dh
+        JMPR    NZ, to_029A
+        MOV     R2, #4
+        JMPR    UC, subst8
 e_pedal:
+        CMP     R12, #24DCh
+        JMPR    NZ, to_0168
+        CMP     R13, #001Fh
+        JMPR    NZ, to_0168
+        MOV     R2, #5
+        MOV     R10, #1
+        JMPR    UC, subst
+subst8:
+        MOV     R10, #0
+; R2 = the table, R10 = 0 for 0D:029A, 1 for 0D:0168. Uses R3, R4 (both readers set R2-R5 and R10 before they use them).
+; The copy is read only with the magic present, the table On, the engine running and a 0x6D frame in the last 3 s (D7).
+subst:
+        EXTP    #10h, #1
+        MOV     R3, W_MAGIC
+        CMP     R3, #MAGIC
+        JMPR    NZ, to_reader
+        MOV     R3, R2                  ; the entry: 9D08h + 6 x the table
+        SHL     R3, #1
+        ADD     R3, R2
+        SHL     R3, #1
+        ADD     R3, #W_DIR
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_ON
+        JMPR    NZ, to_reader
+        MOVB    RL4, F_STATE
+        CMPB    RL4, #2
+        JMPR    NZ, to_reader
+        MOV     R4, F_MODE
+        AND     R4, #1E00h
+        JMPR    Z, to_reader
+        MOV     R4, F_TICKS
+        EXTP    #10h, #1
+        SUB     R4, W_SEEN
+        CMP     R4, #SILENCE
+        JMPR    UGE, to_reader
+        EXTP    #10h, #1
+        MOV     R12, [R3+2]             ; the copy's offset in the area
+        ADD     R12, #(W_COPY & 3FFFh)  ; its page offset in page 10h
+        MOV     R13, #0010h
+to_reader:
+        CMP     R10, #0
+        JMPR    NZ, to_0168
+to_029A:
+        JMPS    0Dh, 029Ah
+to_0168:
         JMPS    0Dh, 0168h
 
 ; ---- the K stub: replaces MOV R14, 91B6h at 0C:AB28 ----
@@ -83,8 +155,13 @@ hk:
         JMPS    0Dh, 080DEh
 
 ; ---- the DS2 0x6D handler: called by the dispatcher (09:FB76) with the request at F6CD ----
-; R2-R5 and R10-R15 are free; R0 and R6-R9 are kept. The serial-line task sends F74D.. once this returns.
+; It keeps R0 and saves R6-R9 on the user stack, as the firmware's handlers do; R1 is left alone. The serial-line task
+; sends F74D.. once this returns.
 handler:
+        MOV     [-R0], R9
+        MOV     [-R0], R8
+        MOV     [-R0], R7
+        MOV     [-R0], R6
         EXTP    #10h, #1
         MOV     R4, W_MAGIC
         CMP     R4, #MAGIC
@@ -109,23 +186,190 @@ h_ready:
         JMPR    ULT, bad_len            ; no sub-command byte
         MOVB    RL5, REQ_SUB
         CMPB    RL5, #0
-        JMPR    NZ, bad_sub
+        JMPR    NZ, h_load
         CMPB    RL4, #5
         JMPR    NZ, bad_len
         JMPA    UC, sub_status
+h_load:
+        CMPB    RL5, #1
+        JMPR    NZ, h_on
+        CMPB    RL4, #8
+        JMPR    NZ, bad_len
+        JMPA    UC, sub_load
+h_on:
+        CMPB    RL5, #3
+        JMPR    NZ, h_off
+        CMPB    RL4, #8
+        JMPR    NZ, bad_len
+        JMPA    UC, sub_on
+h_off:
+        CMPB    RL5, #4
+        JMPR    NZ, bad_sub
+        CMPB    RL4, #6
+        JMPR    NZ, bad_len
+        JMPA    UC, sub_off
 
+; ---- the replies: refusals carry the reason in RL4; every path leaves through h_exit ----
 bad_len:
-        MOVB    RL3, #1
+        MOV     R4, #1
         JMPR    UC, refuse_b0
 bad_sub:
-        MOVB    RL3, #2
+        MOV     R4, #2
+        JMPR    UC, refuse_b0
+bad_table:
+        MOV     R4, #3
+        JMPR    UC, refuse_b0
+bad_range:
+        MOV     R4, #4
+        JMPR    UC, refuse_b0
+bad_overlap:
+        MOV     R4, #5
 refuse_b0:
-        MOVB    RL4, #0B0h
-        MOVB    REP_STATUS, RL4
-        MOVB    REP_DATA, RL3
+        MOVB    RL5, #0B0h
+        JMPR    UC, refuse
+refuse_stopped:
+        MOV     R4, #6
+        JMPR    UC, refuse_b1
+refuse_on:
+        MOV     R4, #7
+        JMPR    UC, refuse_b1
+refuse_free:
+        MOV     R4, #8
+refuse_b1:
+        MOVB    RL5, #0B1h
+refuse:
+        MOVB    REP_STATUS, RL5
+        MOVB    REP_DATA, RL4
         MOVB    RL4, #5
         MOVB    REP_LEN, RL4
+        JMPR    UC, h_exit
+ack:
+        MOVB    RL4, #0A0h
+        MOVB    REP_STATUS, RL4
+        MOVB    RL4, #4
+        MOVB    REP_LEN, RL4
+h_exit:
+        MOV     R6, [R0+]
+        MOV     R7, [R0+]
+        MOV     R8, [R0+]
+        MOV     R9, [R0+]
         RETS
+
+; ---- load i, off: the flashed table copied to the copy area at off; Loaded ----
+sub_load:
+        MOVBZ   R2, REQ_ARG
+        CMP     R2, #5
+        JMPA    UGT, bad_table
+        MOVBZ   R6, REQ_ARG+1
+        SHL     R6, #8
+        MOVBZ   R4, REQ_ARG+2
+        OR      R6, R4                  ; R6: the offset in the copy area
+        CALLA   UC, table_info          ; R11 page, R12 flash offset, R10 bytes, R14 flags
+        MOV     R7, R10                 ; R7: the bytes
+        JNB     R14.0, ld_even
+        JB      R6.0, bad_range         ; the pedal map's words at an even offset: the C167 traps an odd word read
+ld_even:
+        MOV     R8, R6
+        ADD     R8, R7                  ; R8: the copy's end
+        CMP     R8, #COPY_BYTES
+        JMPA    UGT, bad_range
+        MOV     R9, #0                  ; R9: every other table not Free must not overlap it
+ld_overlap:
+        CMP     R9, R2
+        JMPR    Z, ld_next
+        MOV     R3, R9
+        SHL     R3, #1
+        ADD     R3, R9
+        SHL     R3, #1
+        ADD     R3, #W_DIR
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_FREE
+        JMPR    Z, ld_next
+        EXTP    #10h, #1
+        MOV     R4, [R3+2]              ; its offset
+        CMP     R4, R8
+        JMPR    UGE, ld_next            ; it starts at or after this copy's end
+        MOV     R5, R9
+        SHL     R5, #3
+        ADD     R5, #(tables & 0FFFFh) + 4
+        EXTS    #0Ch, #1
+        MOV     R5, [R5]                ; its bytes
+        ADD     R5, R4                  ; its end
+        CMP     R6, R5
+        JMPA    ULT, bad_overlap        ; this copy starts before its end
+ld_next:
+        ADD     R9, #1
+        CMP     R9, #6
+        JMPR    ULT, ld_overlap
+        CALLA   UC, entry_addr          ; R3: the table's entry
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_ON
+        JMPA    Z, refuse_on
+        MOV     R13, R6
+        ADD     R13, #W_COPY
+        MOV     R5, R7
+ld_copy:
+        EXTP    R11, #1
+        MOVB    RL4, [R12]
+        EXTP    #10h, #1
+        MOVB    [R13], RL4
+        ADD     R12, #1
+        ADD     R13, #1
+        SUB     R5, #1
+        JMPR    NZ, ld_copy
+        EXTP    #10h, #1
+        MOV     [R3+2], R6
+        MOV     R4, #0
+        EXTP    #10h, #1
+        MOV     [R3+4], R4
+        MOV     R4, #ST_LOADED          ; the state, written last
+        EXTP    #10h, #1
+        MOV     [R3], R4
+        JMPA    UC, ack
+
+; ---- on i, sum: a loaded table whose copy has this edit sum (and keeps the rules) switches on ----
+sub_on:
+        MOVBZ   R2, REQ_ARG
+        CMP     R2, #5
+        JMPA    UGT, bad_table
+        CALLA   UC, running
+        CMP     R4, #0
+        JMPA    Z, refuse_stopped
+        CALLA   UC, entry_addr
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_FREE
+        JMPA    Z, refuse_free
+        MOVBZ   R6, REQ_ARG+1
+        SHL     R6, #8
+        MOVBZ   R4, REQ_ARG+2
+        OR      R6, R4                  ; R6: the edit sum
+        CALLA   UC, verify
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        EXTP    #10h, #1
+        MOV     [R3+4], R6
+        MOV     R4, #ST_ON              ; the state, written last
+        EXTP    #10h, #1
+        MOV     [R3], R4
+        JMPA    UC, ack
+
+; ---- off i: On becomes Ready, the copy stays ----
+sub_off:
+        MOVBZ   R2, REQ_ARG
+        CMP     R2, #5
+        JMPA    UGT, bad_table
+        CALLA   UC, entry_addr
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_ON
+        JMPA    NZ, ack
+        MOV     R4, #ST_READY
+        EXTP    #10h, #1
+        MOV     [R3], R4
+        JMPA    UC, ack
 
 ; ---- status: the 52-byte payload of the contract ----
 sub_status:
@@ -140,7 +384,7 @@ sub_status:
         OR      R4, #(RICHER_ONLY*2 + PEDAL_LIVE*4)
         SHL     R4, #8
         OR      R4, #OVL_VERSION
-        MOV     [R2+4], R4             ; the version, then the flags
+        MOV     [R2+4], R4              ; the version, then the flags
         MOV     R10, F_K                ; K0
         EXTP    #10h, #1
         MOV     R11, W_KEDIT
@@ -172,11 +416,11 @@ st_entry:
         MOV     R4, [R3]                ; the state, then 0
         MOV     [R5], R4
         EXTP    #10h, #1
-        MOV     R4, [R3+2]             ; the copy offset
+        MOV     R4, [R3+2]              ; the copy offset
         ROL     R4, #8
         MOV     [R5+2], R4
         EXTP    #10h, #1
-        MOV     R4, [R3+4]             ; the edit sum
+        MOV     R4, [R3+4]              ; the edit sum
         ROL     R4, #8
         MOV     [R5+4], R4
         ADD     R3, #6
@@ -205,7 +449,58 @@ fr_next:
         MOVB    REP_STATUS, RL4
         MOVB    RL4, #56
         MOVB    REP_LEN, RL4
-        RETS
+        JMPA    UC, h_exit
+
+; ---- verify: R2 = the table, R3 = its entry, R6 = the edit sum it must have. R4 = 0, or the B1 reason. Uses R5,
+; R7, R10-R14. The edit sum is the copy's bytes less the flashed table's, modulo 2^16 (D9). ----
+verify:
+        CALLA   UC, table_info
+        EXTP    #10h, #1
+        MOV     R13, [R3+2]
+        ADD     R13, #W_COPY
+        MOV     R4, #0
+        MOV     R5, R10
+vf_loop:
+        EXTP    #10h, #1
+        MOVB    RL7, [R13]
+        MOVBZ   R7, RL7
+        ADD     R4, R7
+        EXTP    R11, #1
+        MOVB    RL7, [R12]
+        MOVBZ   R7, RL7
+        SUB     R4, R7
+        ADD     R12, #1
+        ADD     R13, #1
+        SUB     R5, #1
+        JMPR    NZ, vf_loop
+        CMP     R4, R6
+        JMPR    NZ, vf_sum
+        MOV     R4, #0
+        RET
+vf_sum:
+        MOV     R4, #9
+        RET
+
+; ---- entry_addr: R3 = the entry of table R2 (9D08h + 6 x R2); uses R3 ----
+entry_addr:
+        MOV     R3, R2
+        SHL     R3, #1
+        ADD     R3, R2
+        SHL     R3, #1
+        ADD     R3, #W_DIR
+        RET
+
+; ---- table_info: table R2's page (R11), page offset (R12), bytes (R10) and flags (R14) from the list; uses R5 ----
+table_info:
+        MOV     R5, R2
+        SHL     R5, #3
+        ADD     R5, #(tables & 0FFFFh)
+        EXTS    #0Ch, #4
+        MOV     R11, [R5]
+        MOV     R12, [R5+2]
+        MOV     R10, [R5+4]
+        MOV     R14, [R5+6]
+        RET
 
 ; ---- running: R4 = 1 while the engine runs (F900 = 2 and FD2C bits 9-12), else 0; uses R4 ----
 running:
