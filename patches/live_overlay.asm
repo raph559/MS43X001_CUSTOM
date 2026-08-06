@@ -5,27 +5,27 @@
 ; contract" in docs/superpowers/plans/2026-10-22-ms43-emulator-plan6-overlay-bin.md. Nothing built from this file is
 ; flashed without the owner's explicit go-ahead; patches/overlay.asm (2026-10-19) is a different, known-bad patch.
 ;
+; The live set is five tables: the owner took the pedal map and the fuel constant K out (2026-10-22).
+;
 ; AS is case-insensitive: a label must not repeat a constant's name (ST_FREE, st_free).
 ;
 ; Rules this source keeps (plan 6, Global Constraints): every routine at an even address; the overlay leaves only by RETS,
-; RET to its own caller, or JMPS to 0D:029A, 0D:0168 or 0D:80DE; no write to a DPP, CP, SP, SYSCON or an interrupt
-; control; the window reached only through EXTP #10h; writes only to the window, the DS2 reply buffer and the stacks;
-; every hex literal starts with a digit.
+; RET to its own caller, or JMPS to 0D:029A or 0D:80DE; no write to a DPP, CP, SP, SYSCON or an interrupt control; the
+; window reached only through EXTP #10h; writes only to the window, the DS2 reply buffer and the stacks; every hex
+; literal starts with a digit.
 
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
 OVL_VERSION     EQU     1               ; (AS predefines VERSION)
-RICHER_ONLY     EQU     1               ; 1: no lambda cell leaner than flashed, K within 90-100 % of K0 (no wideband yet)
-PEDAL_LIVE      EQU     1               ; 1: the pedal map is live, inside the tune's own envelope
+RICHER_ONLY     EQU     1               ; 1: no lambda cell leaner than flashed (no wideband yet)
+N_TABLES        EQU     5               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- the window: external RAM 9D00-9FDF (page 10h), reached only through EXTP #10h ----
 W_MAGIC         EQU     9D00h           ; C0DEh once the handler has initialised the window
 W_SEEN          EQU     9D02h           ; E2A6 at the last 0x6D frame
-W_KEDIT         EQU     9D04h           ; the edited K
-W_KSTATE        EQU     9D06h           ; byte: 0 no edit, 1 stored (off), 2 on; 9D07 stays 0
-W_DIR           EQU     9D08h           ; 6 entries of 6 bytes: state, 0, copy offset (word), edit sum (word)
-W_COPY          EQU     9D2Ch           ; the copy area: 692 bytes, to 9FDF
+W_DIR           EQU     9D08h           ; 5 entries of 6 bytes: state, 0, copy offset (word), edit sum (word)
+W_COPY          EQU     9D2Ch           ; the copy area: 692 bytes, to 9FDF (9D04-9D07 and 9D26-9D2B stay zero)
 COPY_BYTES      EQU     692
 MAGIC           EQU     0C0DEh
 SILENCE         EQU     300             ; 3 s of 10 ms ticks
@@ -38,7 +38,6 @@ ST_ON           EQU     3
 F_STATE         EQU     0F900h          ; byte: 2 = synchronised
 F_MODE          EQU     0FD2Ch          ; bits 9-12: idle, part load, overrun, fuel cut
 F_TICKS         EQU     0E2A6h          ; +1 every 10 ms in the main loop
-F_K             EQU     91B6h           ; K, written once at start-up
 REQ_LEN         EQU     0F6CEh          ; the request: 12h at F6CD, the length, the command, then F6D0 on
 REQ_SUB         EQU     0F6D0h
 REQ_ARG         EQU     0F6D1h
@@ -54,7 +53,7 @@ header: DB      "LTOV"                  ; the signature the app reads with DS2 c
         DW      code_start & 0FFFFh
         DW      code_end & 0FFFFh
         DW      data_end & 0FFFFh
-        DW      6                       ; live tables
+        DW      N_TABLES
         DW      0
 
 code_start:
@@ -63,50 +62,39 @@ code_start:
 ; A stub substitutes the table's copy only for its own table's address; anything else goes to the reader untouched.
 e_ign98pl:
         CMP     R12, #3315h
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         CMP     R13, #001Dh
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         MOV     R2, #0
-        JMPR    UC, subst8
+        JMPR    UC, subst
 e_ign98is:
         CMP     R12, #35D4h
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         CMP     R13, #001Dh
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         MOV     R2, #1
-        JMPR    UC, subst8
+        JMPR    UC, subst
 e_af98:
         CMP     R12, #169Ch
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         CMP     R13, #001Fh
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         MOV     R2, #2
-        JMPR    UC, subst8
+        JMPR    UC, subst
 e_camin:
         CMP     R12, #2390h
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         CMP     R13, #001Dh
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         MOV     R2, #3
-        JMPR    UC, subst8
+        JMPR    UC, subst
 e_camex:
         CMP     R12, #229Ch
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         CMP     R13, #001Dh
-        JMPR    NZ, to_029A
+        JMPR    NZ, to_reader
         MOV     R2, #4
-        JMPR    UC, subst8
-e_pedal:
-        CMP     R12, #24DCh
-        JMPR    NZ, to_0168
-        CMP     R13, #001Fh
-        JMPR    NZ, to_0168
-        MOV     R2, #5
-        MOV     R10, #1
-        JMPR    UC, subst
-subst8:
-        MOV     R10, #0
-; R2 = the table, R10 = 0 for 0D:029A, 1 for 0D:0168. Uses R3, R4 (both readers set R2-R5 and R10 before they use them).
+; R2 = the table. Uses R3, R4 (the reader 0D:029A sets R2-R5 before it uses them).
 ; The copy is read only with the magic present, the table On, the engine running and a 0x6D frame in the last 3 s (D7).
 subst:
         EXTP    #10h, #1
@@ -138,17 +126,7 @@ subst:
         ADD     R12, #(W_COPY & 3FFFh)  ; its page offset in page 10h
         MOV     R13, #0010h
 to_reader:
-        CMP     R10, #0
-        JMPR    NZ, to_0168
-to_029A:
         JMPS    0Dh, 029Ah
-to_0168:
-        JMPS    0Dh, 0168h
-
-; ---- the K stub: replaces MOV R14, 91B6h at 0C:AB28 ----
-kstub:
-        MOV     R14, F_K
-        RETS
 
 ; ---- housekeeping: queue-1 task 09h's entry, every 10 ms ----
 hk:
@@ -258,7 +236,7 @@ h_exit:
 ; ---- load i, off: the flashed table copied to the copy area at off; Loaded ----
 sub_load:
         MOVBZ   R2, REQ_ARG
-        CMP     R2, #5
+        CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
         MOVBZ   R6, REQ_ARG+1
         SHL     R6, #8
@@ -266,9 +244,6 @@ sub_load:
         OR      R6, R4                  ; R6: the offset in the copy area
         CALLA   UC, table_info          ; R11 page, R12 flash offset, R10 bytes, R14 flags
         MOV     R7, R10                 ; R7: the bytes
-        JNB     R14.0, ld_even
-        JB      R6.0, bad_range         ; the pedal map's words at an even offset: the C167 traps an odd word read
-ld_even:
         MOV     R8, R6
         ADD     R8, R7                  ; R8: the copy's end
         CMP     R8, #COPY_BYTES
@@ -300,7 +275,7 @@ ld_overlap:
         JMPA    ULT, bad_overlap        ; this copy starts before its end
 ld_next:
         ADD     R9, #1
-        CMP     R9, #6
+        CMP     R9, #N_TABLES
         JMPR    ULT, ld_overlap
         CALLA   UC, entry_addr          ; R3: the table's entry
         EXTP    #10h, #1
@@ -332,7 +307,7 @@ ld_copy:
 ; ---- on i, sum: a loaded table whose copy has this edit sum (and keeps the rules) switches on ----
 sub_on:
         MOVBZ   R2, REQ_ARG
-        CMP     R2, #5
+        CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
         CALLA   UC, running
         CMP     R4, #0
@@ -359,7 +334,7 @@ sub_on:
 ; ---- off i: On becomes Ready, the copy stays ----
 sub_off:
         MOVBZ   R2, REQ_ARG
-        CMP     R2, #5
+        CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
         CALLA   UC, entry_addr
         EXTP    #10h, #1
@@ -371,7 +346,7 @@ sub_off:
         MOV     [R3], R4
         JMPA    UC, ack
 
-; ---- status: the 52-byte payload of the contract ----
+; ---- status: the 38-byte payload of the contract ----
 sub_status:
         CALLA   UC, running
         MOV     R13, R4                 ; 1 while the engine runs
@@ -381,36 +356,12 @@ sub_status:
         MOV     R4, #564Fh              ; "OV"
         MOV     [R2+2], R4
         MOV     R4, R13
-        OR      R4, #(RICHER_ONLY*2 + PEDAL_LIVE*4)
+        OR      R4, #(RICHER_ONLY*2)
         SHL     R4, #8
         OR      R4, #OVL_VERSION
         MOV     [R2+4], R4              ; the version, then the flags
-        MOV     R10, F_K                ; K0
-        EXTP    #10h, #1
-        MOV     R11, W_KEDIT
-        MOV     R12, R10                ; K now: the edit while K is on and the engine runs, else K0
-        EXTP    #10h, #1
-        MOVB    RL4, W_KSTATE
-        CMPB    RL4, #2
-        JMPR    NZ, st_know
-        CMP     R13, #0
-        JMPR    Z, st_know
-        MOV     R12, R11
-st_know:
-        MOV     R4, R12
-        ROL     R4, #8                  ; big-endian
-        MOV     [R2+6], R4
-        MOV     R4, R11
-        ROL     R4, #8
-        MOV     [R2+8], R4
-        MOV     R4, R10
-        ROL     R4, #8
-        MOV     [R2+10], R4
-        EXTP    #10h, #1
-        MOV     R4, W_KSTATE            ; the K state, then 0
-        MOV     [R2+12], R4
         MOV     R3, #W_DIR
-        MOV     R5, #(REP_DATA + 14)
+        MOV     R5, #(REP_DATA + 6)
 st_entry:
         EXTP    #10h, #1
         MOV     R4, [R3]                ; the state, then 0
@@ -425,7 +376,7 @@ st_entry:
         MOV     [R5+4], R4
         ADD     R3, #6
         ADD     R5, #6
-        CMP     R3, #(W_DIR + 36)
+        CMP     R3, #(W_DIR + 6*N_TABLES)
         JMPR    ULT, st_entry
         MOV     R4, #COPY_BYTES         ; the free bytes: 692 less every table not Free
         MOV     R3, #W_DIR
@@ -441,13 +392,13 @@ fr_loop:
 fr_next:
         ADD     R3, #6
         ADD     R5, #8
-        CMP     R3, #(W_DIR + 36)
+        CMP     R3, #(W_DIR + 6*N_TABLES)
         JMPR    ULT, fr_loop
         ROL     R4, #8
-        MOV     [R2+50], R4
+        MOV     [R2+36], R4
         MOVB    RL4, #0A0h
         MOVB    REP_STATUS, RL4
-        MOVB    RL4, #56
+        MOVB    RL4, #42
         MOVB    REP_LEN, RL4
         JMPA    UC, h_exit
 
@@ -518,14 +469,13 @@ r_stopped:
 
 code_end:
 
-; ---- the live tables: page, page offset, bytes, flags (bit 0 words, bit 1 the lambda rule, bit 2 the pedal envelope) ----
+; ---- the live tables: page, page offset, bytes, flags (bit 0: the lambda rule) ----
 tables:
         DW      001Dh, 3315h, 320, 0    ; 0 ip_iga_ron98_pl__n__maf   0x77315
         DW      001Dh, 35D4h, 36, 0     ; 1 ip_iga_ron98_is__n__maf   0x775D4
-        DW      001Fh, 169Ch, 192, 2    ; 2 ip_af_target_ron98__maf__n 0x7D69C
+        DW      001Fh, 169Ch, 192, 1    ; 2 ip_af_target_ron98__maf__n 0x7D69C
         DW      001Dh, 2390h, 192, 0    ; 3 ip_cam_sp_ron98_in_pl     0x76390
         DW      001Dh, 229Ch, 192, 0    ; 4 ip_cam_sp_ron98_ex_pl     0x7629C
-        DW      001Fh, 24DCh, 288, 5    ; 5 ip_tps_sp_pvs__pvs__n     0x7E4DC
 
 data_end:
 
@@ -546,10 +496,6 @@ data_end:
         CALLS   0Ch, e_camex & 0FFFFh
         ORG     0B3BEAh                 ; file 0x33BEA: its read otherwise
         CALLS   0Ch, e_camex & 0FFFFh
-        ORG     09B12Ah                 ; file 0x1B12A: ip_tps_sp_pvs's read
-        CALLS   0Ch, e_pedal & 0FFFFh
-        ORG     0CAB28h                 ; file 0x4AB28: MOV R14, 91B6h, the one read of K
-        CALLS   0Ch, kstub & 0FFFFh
         ORG     09FC8Ah                 ; file 0x1FC8A: the dispatcher's slot for command 6Dh
         CALLS   0Ch, handler & 0FFFFh
         ORG     0EE3E2h                 ; file 0x6E3E2: queue-1 task 09h (0D:80DE)
