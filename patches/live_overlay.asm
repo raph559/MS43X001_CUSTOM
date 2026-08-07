@@ -242,6 +242,8 @@ sub_load:
         SHL     R6, #8
         MOVBZ   R4, REQ_ARG+2
         OR      R6, R4                  ; R6: the offset in the copy area
+        CMP     R6, #COPY_BYTES
+        JMPA    UGT, bad_range          ; first, so the end below cannot wrap past FFFFh
         CALLA   UC, table_info          ; R11 page, R12 flash offset, R10 bytes, R14 flags
         MOV     R7, R10                 ; R7: the bytes
         MOV     R8, R6
