@@ -1,5 +1,20 @@
 # MS43X001 live-calibration overlay - the built patch
 
+> **2026-10-24: the live-tuning overlay is now `patches/live_overlay.asm`** (plan 6), a new patch
+> written from the approved design (the source contract).
+> It is built by `python -I tools/build_live_overlay.py`, which assembles it with AS, refuses any
+> warning but "page might not be addressable" and any record outside its write list, applies it to
+> a copy of the car file, fixes and verifies the five checksums, and writes
+> `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY.bin` (not committed) and the committed test fixture
+> `sim/tests/Ms43Sim.Tests/fixtures/live_overlay.hex`. Its contract (DS2 command 0x6D) is in the
+> plan, the source contract, and what was proven
+> in the emulator, the rulings and the open items in the source contract.
+> It is proven in the emulator only: **nothing built from it is flashed or handed over without the
+> owner's explicit go-ahead.**
+>
+> Everything below is about the old patch, `patches/overlay.asm` (2026-10-19). It stays the
+> known-bad record: never flash or reuse any build of it.
+
 `patches/overlay.asm` is the source, `build/` holds the assembled images.
 
 > **Do not flash any image built from this source.** A byte-level review on 2026-10-20 found
