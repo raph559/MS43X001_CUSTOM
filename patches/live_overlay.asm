@@ -57,6 +57,9 @@ header: DB      "LTOV"                  ; the signature the app reads with DS2 c
         DW      N_TABLES
         DW      0
 
+W_SESSION       EQU     0E6B4h
+W_REV           EQU     0E7C4h
+
 code_start:
 
 ; ---- the table stubs: one per table, called by its sites' CALLS with R12/R13 = the table's flash address ----
@@ -735,6 +738,79 @@ running:
         RET
 r_stopped:
         MOV     R4, #0
+        RET
+
+request_dword:
+        MOVB    RL7, [R12]
+        MOVBZ   R7, RL7
+        SHL     R7, #8
+        MOVB    RL4, [R12+1]
+        MOVBZ   R4, RL4
+        OR      R7, R4
+        MOVB    RL6, [R12+2]
+        MOVBZ   R6, RL6
+        SHL     R6, #8
+        MOVB    RL4, [R12+3]
+        MOVBZ   R4, RL4
+        OR      R6, R4
+        RET
+
+check_session:
+        MOV     R4, R6
+        OR      R4, R7
+        JMPR    Z, session_bad
+        EXTP    #3, #1
+        CMP     R6, W_SESSION
+        JMPR    NZ, session_bad
+        EXTP    #3, #1
+        CMP     R7, W_SESSION+2
+        JMPR    NZ, session_bad
+        MOV     R4, #0
+        RET
+session_bad:
+        MOV     R4, #12
+        RET
+
+check_revision:
+        EXTP    #3, #1
+        CMP     R6, W_REV
+        JMPR    NZ, revision_bad
+        EXTP    #3, #1
+        CMP     R7, W_REV+2
+        JMPR    NZ, revision_bad
+        MOV     R4, #0
+        RET
+revision_bad:
+        MOV     R4, #13
+        RET
+
+revision_available:
+        EXTP    #3, #2
+        MOV     R4, W_REV
+        AND     R4, W_REV+2
+        CMP     R4, #0FFFFh
+        JMPR    Z, revision_bad
+        MOV     R4, #0
+        RET
+
+advance_revision:
+        MOV     R4, #1
+        EXTP    #3, #1
+        ADD     W_REV, R4
+        MOV     R4, #0
+        EXTP    #3, #1
+        ADDC    W_REV+2, R4
+        RET
+
+; Internal little-endian dword R12 to reply big-endian R13. R2/R3 unchanged.
+reply_dword:
+        EXTP    #3, #2
+        MOV     R4, [R12+2]
+        MOV     R5, [R12]
+        ROL     R4, #8
+        ROL     R5, #8
+        MOV     [R13], R4
+        MOV     [R13+2], R5
         RET
 
 code_end:
