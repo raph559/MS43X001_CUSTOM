@@ -1,35 +1,30 @@
-; MS43X001 live-tuning overlay, protocol version 2.
-;
-; Built by tools/build_live_overlay.py from the car file bins/CAR_current_43X001_SP95_STAGE1.bin; the emulator's tests
-; run its assembly (sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v2.hex). The v2 contract is documented in
-; docs/live-overlay-v2.md. Nothing built from this file is
-; flashed without the owner's explicit go-ahead; patches/overlay.asm (2026-10-19) is a different, known-bad patch.
-;
-; The live set is five tables: the owner took the pedal map and the fuel constant K out (2026-10-22).
-;
-; AS is case-insensitive: a label must not repeat a constant's name (ST_FREE, st_free).
-;
-; Rules this source keeps (plan 6, Global Constraints): every routine at an even address; the overlay leaves only by RETS,
-; RET to its own caller, or JMPS to 0D:029A or 0D:80DE; no write to a DPP, CP, SP, SYSCON or an interrupt control; the
-; window reached only through EXTP #10h; writes only to the window, the DS2 reply buffer and the stacks; every hex
-; literal starts with a digit.
+; MS43X001 live overlay protocol 3. See docs/live-overlay-v3.md.
+; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
+; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
+; Main/AFR/exhaust: 041D00..041FBF; private request snapshot: 041FC0..041FDF.
+; The disabled service monitor must remain disabled. No flash programming occurs at runtime.
 
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     2               ; (AS predefines VERSION)
-RICHER_ONLY     EQU     1               ; 1: no lambda cell leaner than flashed (no wideband yet)
+OVL_VERSION     EQU     3               ; (AS predefines VERSION)
+RICHER_ONLY     EQU     0               ; protocol 3 preserves the full original u8 range
 N_TABLES        EQU     5               ; the live tables (TABLES would be the label tables to AS)
 
-; ---- the window: external RAM 9D00-9FDF (page 10h), reached only through EXTP #10h ----
-W_MAGIC         EQU     9D00h           ; C0D2h once the handler has initialised the window
-W_SEEN          EQU     9D02h           ; E2A6 at the last 0x6D frame
-W_DIR           EQU     9D08h           ; 5 entries of 8 bytes: state, 0, offset, CRC32 low/high words
-W_COPY          EQU     9D30h           ; 688 bytes, to 9FDF; directory ends at 9D2F
-COPY_BYTES      EQU     688
-MOST_WRITE      EQU     120             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0D2h
+; ---- control in XRAM, reached through EXTP #3 ----
+W_MAGIC         EQU     0E6B0h           ; C0D3h once the handler has initialised the window
+W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
+W_DIR           EQU     0E6B8h           ; 5 entries of 8 bytes: state, 0, offset, CRC32 low/high words
+W_COPY          EQU     0E6E0h           ; control end, followed by idle ignition and intake cam
+COPY_BYTES      EQU     932
+MOST_WRITE      EQU     112             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
+MAGIC           EQU     0C0D3h
 SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
+W_SESSION       EQU     0E6B4h
+W_REV           EQU     0E7C4h
+W_PATCH         EQU     09FC0h
+REQ_SESSION     EQU     0F6D1h
+REQ_REV         EQU     0F6D5h
 ST_FREE         EQU     0
 ST_LOADED       EQU     1
 ST_READY        EQU     2
@@ -41,7 +36,7 @@ F_MODE          EQU     0FD2Ch          ; bits 9-12: idle, part load, overrun, f
 F_TICKS         EQU     0E2A6h          ; +1 every 10 ms in the main loop
 REQ_LEN         EQU     0F6CEh          ; the request: 12h at F6CD, the length, the command, then F6D0 on
 REQ_SUB         EQU     0F6D0h
-REQ_ARG         EQU     0F6D1h
+REQ_ARG         EQU     0F6D9h
 REP_LEN         EQU     0F74Eh          ; the reply: 12h at F74D, the length, the status, then the payload
 REP_STATUS      EQU     0F74Fh
 REP_DATA        EQU     0F750h
@@ -56,11 +51,6 @@ header: DB      "LTOV"                  ; the signature the app reads with DS2 c
         DW      data_end & 0FFFFh
         DW      N_TABLES
         DW      0
-
-W_SESSION       EQU     0E6B4h
-W_REV           EQU     0E7C4h
-
-W_PATCH         EQU     09FC0h
 
 code_start:
 
@@ -103,14 +93,14 @@ e_camex:
 ; R2 = the table. Uses R3, R4 (the reader 0D:029A sets R2-R5 before it uses them).
 ; The copy is read only with the magic present, the table On, the engine running and a 0x6D frame in the last 3 s (D7).
 subst:
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R3, W_MAGIC
         CMP     R3, #MAGIC
         JMPR    NZ, to_reader
-        MOV     R3, R2                  ; the entry: 9D08h + 8 x the table
+        MOV     R3, R2                  ; the entry: E6B8h + 8 x the table
         SHL     R3, #3
         ADD     R3, #W_DIR
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_ON
         JMPR    NZ, to_reader
@@ -121,14 +111,19 @@ subst:
         AND     R4, #1E00h
         JMPR    Z, to_reader
         MOV     R4, F_TICKS
-        EXTP    #10h, #1
+        EXTP    #3, #1
         SUB     R4, W_SEEN
         CMP     R4, #SILENCE
         JMPR    UGE, to_reader
-        EXTP    #10h, #1
-        MOV     R12, [R3+2]             ; the copy's offset in the area
-        ADD     R12, #(W_COPY & 3FFFh)  ; its page offset in page 10h
+        EXTP    #3, #1
+        MOV     R12, [R3+2]             ; the fixed offset within its RAM page
         MOV     R13, #0010h
+        CMP     R2, #1
+        JMPR    Z, rd_internal
+        CMP     R2, #3
+        JMPR    NZ, to_reader
+rd_internal:
+        MOV     R13, #3
 to_reader:
         JMPS    0Dh, 029Ah
 
@@ -138,7 +133,7 @@ to_reader:
 hk:
         MOV     [-R0], R3
         MOV     [-R0], R4
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R4, W_MAGIC
         CMP     R4, #MAGIC
         JMPR    NZ, hk_task
@@ -160,21 +155,25 @@ handler:
         MOV     [-R0], R8
         MOV     [-R0], R7
         MOV     [-R0], R6
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R4, W_MAGIC
         CMP     R4, #MAGIC
         JMPR    Z, h_ready
-        MOV     R5, #W_SEEN             ; the first frame since the boot: zero 9D02-9D2F, then the magic
+        MOV     R5, #W_SEEN             ; the first frame since boot: zero E6B2-E6DF, then the magic
         MOV     R4, #0
 h_zero:
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R5], R4
         ADD     R5, #2
         CMP     R5, #W_COPY
         JMPR    ULT, h_zero
         MOV     R4, #MAGIC
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     W_MAGIC, R4
+        MOV     R4, #0
+        EXTP    #3, #2
+        MOV     W_REV, R4
+        MOV     W_REV+2, R4
 h_ready:
         CALLA   UC, off_due             ; a frame after a stop or a silence finds everything off first
         CMP     R4, #0
@@ -182,65 +181,85 @@ h_ready:
         CALLA   UC, all_off
 h_stamp:
         MOV     R4, F_TICKS             ; the keep-alive
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     W_SEEN, R4
-        MOVB    RL4, REQ_LEN
-        CMPB    RL4, #5
-        JMPR    ULT, bad_len            ; no sub-command byte
-        MOVB    RL5, REQ_SUB
-        CMPB    RL5, #0
-        JMPR    NZ, h_load
-        CMPB    RL4, #5
-        JMPR    NZ, bad_len
+        MOVBZ   R4, REQ_LEN
+        CMP     R4, #5
+        JMPA    ULT, bad_len
+        MOVBZ   R5, REQ_SUB
+        CMP     R5, #0
+        JMPR    NZ, h_open
+        CMP     R4, #5
+        JMPA    NZ, bad_len
         JMPA    UC, sub_status
-h_load:
-        CMPB    RL5, #1
+h_open:
+        CMP     R5, #10
+        JMPR    NZ, h_patch
+        CMP     R4, #9
+        JMPA    NZ, bad_len
+        JMPA    UC, sub_open
+h_patch:
+        CMP     R5, #9
+        JMPR    NZ, h_auth
+        CMP     R4, #37
+        JMPA    NZ, bad_len
+        JMPA    UC, sub_patch
+h_auth:
+        CMP     R4, #13
+        JMPA    ULT, bad_len
+        CALLA   UC, authorize
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        MOVBZ   R4, REQ_LEN
+        SUB     R4, #8
+        MOVBZ   R5, REQ_SUB
+        CMP     R5, #1
         JMPR    NZ, h_write
-        CMPB    RL4, #8
-        JMPR    NZ, bad_len
+        CMP     R4, #8
+        JMPA    NZ, bad_len
         JMPA    UC, sub_load
 h_write:
-        CMPB    RL5, #2
+        CMP     R5, #2
         JMPR    NZ, h_on
-        CMPB    RL4, #8
-        JMPR    ULT, bad_len            ; 8 carries no data: a range error, below
+        CMP     R4, #8
+        JMPA    ULT, bad_len
         JMPA    UC, sub_write
 h_on:
-        CMPB    RL5, #3
+        CMP     R5, #3
         JMPR    NZ, h_off
-        CMPB    RL4, #10
-        JMPR    NZ, bad_len
+        CMP     R4, #10
+        JMPA    NZ, bad_len
         JMPA    UC, sub_on
 h_off:
-        CMPB    RL5, #4
+        CMP     R5, #4
         JMPR    NZ, h_allon
-        CMPB    RL4, #6
-        JMPR    NZ, bad_len
+        CMP     R4, #6
+        JMPA    NZ, bad_len
         JMPA    UC, sub_off
 h_allon:
-        CMPB    RL5, #5
+        CMP     R5, #5
         JMPR    NZ, h_alloff
-        CMPB    RL4, #5
-        JMPR    NZ, bad_len
+        CMP     R4, #5
+        JMPA    NZ, bad_len
         JMPA    UC, sub_allon
 h_alloff:
-        CMPB    RL5, #6
+        CMP     R5, #6
         JMPR    NZ, h_free
-        CMPB    RL4, #5
-        JMPR    NZ, bad_len
+        CMP     R4, #5
+        JMPA    NZ, bad_len
         CALLA   UC, all_off
-        JMPR    UC, ack
+        JMPA    UC, ack
 h_free:
-        CMPB    RL5, #7
+        CMP     R5, #7
         JMPR    NZ, h_revert
-        CMPB    RL4, #6
-        JMPR    NZ, bad_len
+        CMP     R4, #6
+        JMPA    NZ, bad_len
         JMPA    UC, sub_free
 h_revert:
-        CMPB    RL5, #8
-        JMPR    NZ, bad_sub
-        CMPB    RL4, #5
-        JMPR    NZ, bad_len
+        CMP     R5, #8
+        JMPA    NZ, bad_sub
+        CMP     R4, #5
+        JMPA    NZ, bad_len
         JMPA    UC, sub_revert
 
 ; ---- the replies: refusals carry the reason in RL4; every path leaves through h_exit ----
@@ -278,9 +297,14 @@ refuse:
         MOVB    REP_LEN, RL4
         JMPR    UC, h_exit
 ack:
+        CALLA   UC, advance_revision
+ack_same:
+        MOV     R12, #W_REV
+        MOV     R13, #REP_DATA
+        CALLA   UC, reply_dword
         MOVB    RL4, #0A0h
         MOVB    REP_STATUS, RL4
-        MOVB    RL4, #4
+        MOVB    RL4, #8
         MOVB    REP_LEN, RL4
 h_exit:
         MOV     R6, [R0+]
@@ -295,71 +319,36 @@ sub_load:
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
+        CALLA   UC, ram_info
         MOVBZ   R6, REQ_ARG+1
         SHL     R6, #8
         MOVBZ   R4, REQ_ARG+2
-        OR      R6, R4                  ; R6: the offset in the copy area
-        CMP     R6, #COPY_BYTES
-        JMPA    UGT, bad_range          ; first, so the end below cannot wrap past FFFFh
-        CALLA   UC, table_info          ; R11 page, R12 flash offset, R10 bytes, R14 flags
-        MOV     R7, R10                 ; R7: the bytes
-        MOV     R8, R6
-        ADD     R8, R7                  ; R8: the copy's end
-        CMP     R8, #COPY_BYTES
-        JMPA    UGT, bad_range
-        MOV     R9, #0                  ; R9: every other table not Free must not overlap it
-ld_overlap:
-        CMP     R9, R2
-        JMPR    Z, ld_next
-        MOV     R3, R9
-        SHL     R3, #3
-        ADD     R3, #W_DIR
-        EXTP    #10h, #1
-        MOVB    RL4, [R3]
-        CMPB    RL4, #ST_FREE
-        JMPR    Z, ld_next
-        EXTP    #10h, #1
-        MOV     R4, [R3+2]              ; its offset
-        CMP     R4, R8
-        JMPR    UGE, ld_next            ; it starts at or after this copy's end
-        MOV     R5, R9
-        SHL     R5, #3
-        ADD     R5, #(tables & 0FFFFh) + 4
-        EXTS    #0Ch, #1
-        MOV     R5, [R5]                ; its bytes
-        ADD     R5, R4                  ; its end
-        CMP     R6, R5
-        JMPA    ULT, bad_overlap        ; this copy starts before its end
-ld_next:
-        ADD     R9, #1
-        CMP     R9, #N_TABLES
-        JMPR    ULT, ld_overlap
-        CALLA   UC, entry_addr          ; R3: the table's entry
-        EXTP    #10h, #1
+        OR      R6, R4
+        CMP     R6, R13
+        JMPA    NZ, bad_range
+        CALLA   UC, entry_addr
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_ON
         JMPA    Z, refuse_on
-        MOV     R13, R6
-        ADD     R13, #W_COPY
-        MOV     R5, R7
+        CALLA   UC, table_info
 ld_copy:
         EXTP    R11, #1
         MOVB    RL4, [R12]
-        EXTP    #10h, #1
+        EXTP    R14, #1
         MOVB    [R13], RL4
         ADD     R12, #1
         ADD     R13, #1
-        SUB     R5, #1
+        SUB     R10, #1
         JMPR    NZ, ld_copy
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R3+2], R6
         MOV     R4, #0
-        EXTP    #10h, #1
+        EXTP    #3, #2
         MOV     [R3+4], R4
-        EXTP    #10h, #1
         MOV     [R3+6], R4
-        MOV     R4, #ST_LOADED          ; the state, written last
-        EXTP    #10h, #1
+        MOV     R4, #ST_LOADED
+        EXTP    #3, #1
         MOV     [R3], R4
         JMPA    UC, ack
 
@@ -369,7 +358,7 @@ sub_write:
         CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
         MOVBZ   R7, REQ_LEN
-        SUB     R7, #8                  ; R7: the data bytes
+        SUB     R7, #16                 ; excludes the session and revision
         JMPA    Z, bad_range
         CMP     R7, #MOST_WRITE
         JMPA    UGT, bad_range
@@ -385,31 +374,29 @@ sub_write:
         CMP     R8, R10
         JMPA    UGT, bad_range          ; the write runs past the table
         CALLA   UC, entry_addr
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_FREE
         JMPA    Z, refuse_free
         CMPB    RL4, #ST_ON
         JMPA    Z, refuse_on            ; never into a copy the reader may be reading
-        EXTP    #10h, #1
-        MOV     R13, [R3+2]
-        ADD     R13, #W_COPY
+        CALLA   UC, ram_info
         ADD     R13, R6
-        MOV     R12, #(REQ_ARG + 3)     ; the data: F6D4 on
+        MOV     R12, #(REQ_ARG + 3)     ; the data: F6DC on
 wr_copy:
         MOVB    RL4, [R12]
-        EXTP    #10h, #1
+        EXTP    R14, #1
         MOVB    [R13], RL4
         ADD     R12, #1
         ADD     R13, #1
         SUB     R7, #1
         JMPR    NZ, wr_copy
         MOV     R4, #ST_LOADED          ; unconfirmed until its next on
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R3], R4
         JMPA    UC, ack
 
-; ---- on i, crc32: finalize a loaded copy after full-content CRC and bounded-edit checks ----
+; ---- on i, crc32: finalize a loaded copy after full-content CRC verification ----
 sub_on:
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
@@ -418,7 +405,7 @@ sub_on:
         CMP     R4, #0
         JMPA    Z, refuse_stopped
         CALLA   UC, entry_addr
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_FREE
         JMPA    Z, refuse_free
@@ -433,12 +420,12 @@ sub_on:
         CALLA   UC, verify
         CMP     R4, #0
         JMPA    NZ, refuse_b1
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R3+4], R6
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R3+6], R7
         MOV     R4, #ST_ON              ; the state, written last
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R3], R4
         JMPA    UC, ack
 
@@ -448,16 +435,16 @@ sub_off:
         CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
         CALLA   UC, entry_addr
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_ON
         JMPA    NZ, ack
         MOV     R4, #ST_READY
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R3], R4
         JMPA    UC, ack
 
-; ---- all on: every Ready table verified again with its stored CRC and the rules, then all of them On together; a Loaded
+; ---- all on: every Ready table verified again with its stored CRC, then all of them On together; a Loaded
 ; table stays off. One that fails refuses the request, and nothing switches on ----
 sub_allon:
         CALLA   UC, running
@@ -466,13 +453,13 @@ sub_allon:
         MOV     R2, #0
 an_check:
         CALLA   UC, entry_addr
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_READY
         JMPR    NZ, an_cnext
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R6, [R3+4]              ; low CRC word from last on
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R7, [R3+6]              ; high CRC word
         CALLA   UC, verify
         CMP     R4, #0
@@ -484,12 +471,12 @@ an_cnext:
         MOV     R2, #0
 an_on:
         CALLA   UC, entry_addr
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_READY
         JMPR    NZ, an_onext
         MOV     R4, #ST_ON
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     [R3], R4
 an_onext:
         ADD     R2, #1
@@ -503,7 +490,7 @@ sub_free:
         CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
         CALLA   UC, entry_addr
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_ON
         JMPA    Z, refuse_on
@@ -521,7 +508,7 @@ rv_loop:
         JMPR    ULT, rv_loop
         JMPA    UC, ack
 
-; ---- status: the 48-byte payload of protocol 2 ----
+; ---- status: 56 payload bytes, including the session and revision ----
 sub_status:
         CALLA   UC, running
         MOV     R13, R4                 ; 1 while the engine runs
@@ -538,18 +525,18 @@ sub_status:
         MOV     R3, #W_DIR
         MOV     R5, #(REP_DATA + 6)
 st_entry:
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R4, [R3]                ; the state, then 0
         MOV     [R5], R4
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R4, [R3+2]              ; the copy offset
         ROL     R4, #8
         MOV     [R5+2], R4
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R4, [R3+6]              ; high CRC word first on the wire
         ROL     R4, #8
         MOV     [R5+4], R4
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R4, [R3+4]
         ROL     R4, #8
         MOV     [R5+6], R4
@@ -557,11 +544,11 @@ st_entry:
         ADD     R5, #8
         CMP     R3, #(W_DIR + 8*N_TABLES)
         JMPR    ULT, st_entry
-        MOV     R4, #COPY_BYTES         ; the free bytes: 688 less every table not Free
+        MOV     R4, #COPY_BYTES         ; unallocated map bytes, excluding control and scratch
         MOV     R3, #W_DIR
         MOV     R5, #(tables & 0FFFFh) + 4
 fr_loop:
-        EXTP    #10h, #1
+        EXTP    #3, #1
         MOV     R10, [R3]
         AND     R10, #00FFh
         JMPR    Z, fr_next
@@ -577,66 +564,44 @@ fr_next:
         MOV     [R2+46], R4
         MOVB    RL4, #0A0h
         MOVB    REP_STATUS, RL4
-        MOVB    RL4, #52
+        MOV     R12, #W_SESSION
+        MOV     R13, #(REP_DATA+48)
+        CALLA   UC, reply_dword
+        MOV     R12, #W_REV
+        MOV     R13, #(REP_DATA+52)
+        CALLA   UC, reply_dword
+        MOVB    RL4, #60
         MOVB    REP_LEN, RL4
         JMPA    UC, h_exit
 
-; ---- verify: R2 table, R3 directory entry, R6/R7 expected CRC low/high. R4 = 0 or refusal reason.
-; CRC-32/ISO-HDLC covers the full RAM copy, including unchanged cells. Every accepted cell is within eight raw
-; counts of this image's flash baseline. AFR additionally cannot be leaner. These are bounded edits, not engine validation.
+; R6/R7 expected full-table CRC. No change-magnitude policy is applied in protocol 3.
 verify:
         MOV     [-R0], R6
         MOV     [-R0], R7
         CALLA   UC, table_info
-        EXTP    #10h, #1
-        MOV     R13, [R3+2]
-        ADD     R13, #W_COPY
+        CALLA   UC, ram_info
+        MOV     R15, #0
         CALLA   UC, content_crc
         MOV     R7, [R0+]
         MOV     R6, [R0+]
         CMP     R4, R6
-        JMPA    NZ, vf_crc
+        JMPR    NZ, vf_crc
         CMP     R5, R7
-        JMPA    NZ, vf_crc
-        MOV     R4, R15                 ; content CRC matched; report the first bounded-edit refusal, if any
+        JMPR    NZ, vf_crc
+        MOV     R4, #0
         RET
 vf_crc:
         MOV     R4, #9
         RET
 
-; R11 flash page, R12 flash pointer, R13 RAM pointer, R10 length, R14 flags.
-; Returns content CRC low/high in R4/R5, and first cell-policy refusal (or zero) in R15.
-; One reflected byte-table update and one bounded-edit comparison per byte, in the same pass.
-; R2/R3 are preserved. R6/R7 are scratch (verify saves the expected CRC on the user stack).
+; R14 page, R13 pointer, R10 bytes. R2/R3 are preserved; result R4/R5 low/high.
 content_crc:
         MOV     R8, #0FFFFh
         MOV     R9, #0FFFFh
-        MOV     R15, #0
 crc_byte:
-        EXTP    #10h, #1
+        EXTP    R14, #1
         MOVB    RL4, [R13]
         MOVBZ   R4, RL4
-        CMP     R15, #0
-        JMPR    NZ, crc_update
-        EXTP    R11, #1
-        MOVB    RL5, [R12]
-        MOVBZ   R5, RL5
-        MOV     R6, R4
-        SUB     R6, R5                  ; signed delta -255..255, never an eight-bit wrapped difference
-        JNB     R14.0, crc_limit
-        CMP     R6, #0
-        JMPR    SLT, crc_leaner
-crc_limit:
-        CMP     R6, #8
-        JMPR    SGT, crc_limit_bad
-        CMP     R6, #0FFF8h
-        JMPR    SLT, crc_limit_bad
-        JMPR    UC, crc_update
-crc_leaner:
-        MOV     R15, #0Ah
-        JMPR    UC, crc_update
-crc_limit_bad:
-        MOV     R15, #0Bh
 crc_update:
         XOR     R8, R4
         MOV     R5, R8
@@ -655,7 +620,6 @@ crc_update:
         MOV     R7, [R5+2]
         XOR     R8, R4
         XOR     R9, R7
-        ADD     R12, #1
         ADD     R13, #1
         SUB     R10, #1
         JMPR    NZ, crc_byte
@@ -665,81 +629,215 @@ crc_update:
         XOR     R5, #0FFFFh
         RET
 
-; ---- off_due: R4 = 1 when everything must be off: the engine not running, or 300 ticks since the last 0x6D frame;
-; else 0. Uses R4 ----
-off_due:
+; A complete request is copied out of the receive buffer before CRC validation.
+; Private snapshot: session, revision, table/reserved/start, before CRC, after CRC, eight bytes, packet CRC.
+sub_patch:
+        MOV     R12, #REQ_SESSION
+        MOV     R13, #W_PATCH
+        MOV     R10, #32
+pt_snapshot:
+        MOVB    RL4, [R12]
+        EXTP    #10h, #1
+        MOVB    [R13], RL4
+        ADD     R12, #1
+        ADD     R13, #1
+        SUB     R10, #1
+        JMPR    NZ, pt_snapshot
+        MOV     R13, #W_PATCH
+        MOV     R14, #10h
+        MOV     R10, #28
+        MOV     R15, #0
+        CALLA   UC, content_crc
+        MOV     R12, #(W_PATCH+28)
+        CALLA   UC, patch_compare_crc
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        MOV     R12, #W_PATCH
+        CALLA   UC, patch_dword
+        CALLA   UC, check_session
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        EXTP    #10h, #2
+        MOVBZ   R2, W_PATCH+8
+        MOVBZ   R4, W_PATCH+9
+        CMP     R2, #4
+        JMPA    UGT, bad_table
+        CMP     R4, #0
+        JMPA    NZ, bad_range
+        CALLA   UC, table_info
+        EXTP    #10h, #1
+        MOV     R6, W_PATCH+10
+        ROL     R6, #8
+        JB      R6.0, pt_range
+        SUB     R10, #8
+        CMP     R6, R10
+        JMPA    UGT, bad_range
+        CALLA   UC, entry_addr
+        EXTP    #3, #1
+        MOVB    RL4, [R3]
+        MOVBZ   R4, RL4
+        CMP     R4, #ST_ON
+        JMPA    NZ, refuse_free
         CALLA   UC, running
         CMP     R4, #0
-        JMPR    Z, od_yes
-        MOV     R4, F_TICKS
+        JMPA    Z, refuse_stopped
+        MOV     R12, #(W_PATCH+4)
+        CALLA   UC, patch_dword
+        MOV     R4, R6
+        AND     R4, R7
+        CMP     R4, #0FFFFh
+        JMPR    NZ, pt_revision
+        MOV     R4, #13
+        JMPA    UC, refuse_b1
+pt_revision:
+        CALLA   UC, check_revision
+        CMP     R4, #0
+        JMPR    Z, pt_before
+        ; Only a retry of the immediately preceding revision may be acknowledged without a write.
+        ADD     R6, #1
+        ADDC    R7, #0
+        CALLA   UC, check_revision
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        CALLA   UC, patch_actual_crc
+        MOV     R12, #(W_PATCH+16)
+        CALLA   UC, patch_compare_crc
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        JMPA    UC, ack_same
+pt_range:
+        JMPA    UC, bad_range
+pt_before:
+        CALLA   UC, revision_available
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        CALLA   UC, patch_actual_crc
+        MOV     R12, #(W_PATCH+12)
+        CALLA   UC, patch_compare_crc
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        CALLA   UC, patch_result_crc
+        MOV     R12, #(W_PATCH+16)
+        CALLA   UC, patch_compare_crc
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+        CALLA   UC, ram_info
         EXTP    #10h, #1
-        SUB     R4, W_SEEN
-        CMP     R4, #SILENCE
-        JMPR    UGE, od_yes
-        MOV     R4, #0
-        RET
-od_yes:
-        MOV     R4, #1
-        RET
-
-; ---- all_off: every On table to Ready, its copy kept; uses R3, R4 ----
-all_off:
-        MOV     R3, #W_DIR
-ao_loop:
-        EXTP    #10h, #1
-        MOVB    RL4, [R3]
-        CMPB    RL4, #ST_ON
-        JMPR    NZ, ao_next
-        MOV     R4, #ST_READY
-        EXTP    #10h, #1
-        MOV     [R3], R4
-ao_next:
-        ADD     R3, #8
-        CMP     R3, #(W_DIR + 8*N_TABLES)
-        JMPR    ULT, ao_loop
-        RET
-
-; ---- free_entry: the entry at R3 to Free, its offset and CRC 0; the state first, so no stub substitutes after it. Uses R4 ----
-free_entry:
-        MOV     R4, #0
+        MOV     R4, W_PATCH+10
+        ROL     R4, #8
+        ADD     R13, R4
         EXTP    #10h, #4
+        MOV     R4, W_PATCH+20
+        MOV     R5, W_PATCH+22
+        MOV     R6, W_PATCH+24
+        MOV     R7, W_PATCH+26
+        ; EXTP protects these four aligned stores from interrupts and PEC. No PSW/IEN change.
+patch_commit:
+        EXTP    R14, #4
+        MOV     [R13], R4
+        MOV     [R13+2], R5
+        MOV     [R13+4], R6
+        MOV     [R13+6], R7
+patch_committed:
+        ; Full current CRC and exact prospective CRC were checked before the commit.
+        ; Read back the only four words changed, avoiding another full-table scan.
+        MOV     R12, #(W_PATCH+20)
+        MOV     R10, #4
+pt_readback:
+        EXTP    R14, #1
+        MOV     R4, [R13]
+        EXTP    #10h, #1
+        MOV     R5, [R12]
+        CMP     R4, R5
+        JMPR    NZ, pt_write_failed
+        ADD     R12, #2
+        ADD     R13, #2
+        SUB     R10, #1
+        JMPR    NZ, pt_readback
+        JMPR    UC, pt_verified
+pt_write_failed:
+        MOV     R4, #ST_READY
+        EXTP    #3, #1
         MOV     [R3], R4
-        MOV     [R3+2], R4
-        MOV     [R3+4], R4
-        MOV     [R3+6], R4
-        RET
+        CALLA   UC, advance_revision
+        MOV     R4, #9
+        JMPA    UC, refuse_b1
+pt_verified:
+        MOV     R12, #(W_PATCH+16)
+        CALLA   UC, patch_dword
+        EXTP    #3, #2
+        MOV     [R3+4], R6
+        MOV     [R3+6], R7
+        JMPA    UC, ack
 
-; ---- entry_addr: R3 = the entry of table R2 (9D08h + 8 x R2); uses R3 ----
-entry_addr:
-        MOV     R3, R2
-        SHL     R3, #3
-        ADD     R3, #W_DIR
-        RET
+patch_actual_crc:
+        CALLA   UC, table_info
+        CALLA   UC, ram_info
+        MOV     R15, #0
+        JMPA    UC, content_crc
 
-; ---- table_info: table R2's page (R11), page offset (R12), bytes (R10) and flags (R14) from the list; uses R5 ----
-table_info:
-        MOV     R5, R2
-        SHL     R5, #3
-        ADD     R5, #(tables & 0FFFFh)
-        EXTS    #0Ch, #4
-        MOV     R11, [R5]
-        MOV     R12, [R5+2]
-        MOV     R10, [R5+4]
-        MOV     R14, [R5+6]
-        RET
-
-; ---- running: R4 = 1 while the engine runs (F900 = 2 and FD2C bits 9-12), else 0; uses R4 ----
-running:
-        MOVB    RL4, F_STATE
-        CMPB    RL4, #2
-        JMPR    NZ, r_stopped
-        MOV     R4, F_MODE
-        AND     R4, #1E00h
-        JMPR    Z, r_stopped
-        MOV     R4, #1
-        RET
-r_stopped:
+; Compare computed R4/R5 with the big-endian dword at patch pointer R12.
+patch_compare_crc:
+        CALLA   UC, patch_dword
+        CMP     R4, R6
+        JMPR    NZ, pc_bad
+        CMP     R5, R7
+        JMPR    NZ, pc_bad
         MOV     R4, #0
+        RET
+pc_bad:
+        MOV     R4, #9
+        RET
+
+patch_dword:
+        EXTP    #10h, #2
+        MOV     R7, [R12]
+        MOV     R6, [R12+2]
+        ROL     R7, #8
+        ROL     R6, #8
+        RET
+
+; RAM page/offset are immutable, independent of directory contents.
+ram_info:
+        MOV     R5, R2
+        SHL     R5, #2
+        ADD     R5, #(ram_tables & 0FFFFh)
+        EXTS    #0Ch, #2
+        MOV     R14, [R5]
+        MOV     R13, [R5+2]
+        RET
+
+sub_open:
+        MOV     R12, #REQ_SESSION
+        CALLA   UC, request_dword
+        MOV     R4, R6
+        OR      R4, R7
+        JMPA    Z, bad_range
+        CALLA   UC, check_session
+        CMP     R4, #0
+        JMPA    Z, ack_same
+        EXTP    #3, #2
+        MOV     W_SESSION, R6
+        MOV     W_SESSION+2, R7
+        MOV     R4, #0
+        EXTP    #3, #2
+        MOV     W_REV, R4
+        MOV     W_REV+2, R4
+        JMPA    UC, ack_same
+
+authorize:
+        MOV     R12, #REQ_SESSION
+        CALLA   UC, request_dword
+        CALLA   UC, check_session
+        CMP     R4, #0
+        JMPR    NZ, auth_done
+        MOV     R12, #REQ_REV
+        CALLA   UC, request_dword
+        CALLA   UC, check_revision
+        CMP     R4, #0
+        JMPR    NZ, auth_done
+        CALLA   UC, revision_available
+auth_done:
         RET
 
 request_dword:
@@ -815,22 +913,80 @@ reply_dword:
         MOV     [R13+2], R5
         RET
 
-patch_dword:
-        EXTP    #10h, #2
-        MOV     R7, [R12]
-        MOV     R6, [R12+2]
-        ROL     R7, #8
-        ROL     R6, #8
+; ---- off_due: R4 = 1 when everything must be off: the engine not running, or 300 ticks since the last 0x6D frame;
+; else 0. Uses R4 ----
+off_due:
+        CALLA   UC, running
+        CMP     R4, #0
+        JMPR    Z, od_yes
+        MOV     R4, F_TICKS
+        EXTP    #3, #1
+        SUB     R4, W_SEEN
+        CMP     R4, #SILENCE
+        JMPR    UGE, od_yes
+        MOV     R4, #0
+        RET
+od_yes:
+        MOV     R4, #1
         RET
 
-; RAM page/offset are immutable, independent of directory contents.
-ram_info:
+; ---- all_off: every On table to Ready, its copy kept; uses R3, R4 ----
+all_off:
+        MOV     R3, #W_DIR
+ao_loop:
+        EXTP    #3, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_ON
+        JMPR    NZ, ao_next
+        MOV     R4, #ST_READY
+        EXTP    #3, #1
+        MOV     [R3], R4
+ao_next:
+        ADD     R3, #8
+        CMP     R3, #(W_DIR + 8*N_TABLES)
+        JMPR    ULT, ao_loop
+        RET
+
+; ---- free_entry: the entry at R3 to Free, its offset and CRC 0; the state first, so no stub substitutes after it. Uses R4 ----
+free_entry:
+        MOV     R4, #0
+        EXTP    #3, #4
+        MOV     [R3], R4
+        MOV     [R3+2], R4
+        MOV     [R3+4], R4
+        MOV     [R3+6], R4
+        RET
+
+; ---- entry_addr: R3 = the entry of table R2 (E6B8h + 8 x R2); uses R3 ----
+entry_addr:
+        MOV     R3, R2
+        SHL     R3, #3
+        ADD     R3, #W_DIR
+        RET
+
+; ---- table_info: table R2's flash page (R11), page offset (R12), bytes (R10); uses R5 ----
+table_info:
         MOV     R5, R2
-        SHL     R5, #2
-        ADD     R5, #(ram_tables & 0FFFFh)
-        EXTS    #0Ch, #2
-        MOV     R14, [R5]
-        MOV     R13, [R5+2]
+        SHL     R5, #3
+        ADD     R5, #(tables & 0FFFFh)
+        EXTS    #0Ch, #3
+        MOV     R11, [R5]
+        MOV     R12, [R5+2]
+        MOV     R10, [R5+4]
+        RET
+
+; ---- running: R4 = 1 while the engine runs (F900 = 2 and FD2C bits 9-12), else 0; uses R4 ----
+running:
+        MOVB    RL4, F_STATE
+        CMPB    RL4, #2
+        JMPR    NZ, r_stopped
+        MOV     R4, F_MODE
+        AND     R4, #1E00h
+        JMPR    Z, r_stopped
+        MOV     R4, #1
+        RET
+r_stopped:
+        MOV     R4, #0
         RET
 
 ; Exact prospective CRC from the verified before CRC and the eight-byte XOR difference.
@@ -926,7 +1082,7 @@ code_end:
 tables:
         DW      001Dh, 3315h, 320, 0    ; 0 ip_iga_ron98_pl__n__maf   0x77315
         DW      001Dh, 35D4h, 36, 0     ; 1 ip_iga_ron98_is__n__maf   0x775D4
-        DW      001Fh, 169Ch, 192, 1    ; 2 ip_af_target_ron98__maf__n 0x7D69C
+        DW      001Fh, 169Ch, 192, 0    ; 2 ip_af_target_ron98__maf__n 0x7D69C
         DW      001Dh, 2390h, 192, 0    ; 3 ip_cam_sp_ron98_in_pl     0x76390
         DW      001Dh, 229Ch, 192, 0    ; 4 ip_cam_sp_ron98_ex_pl     0x7629C
 
@@ -1195,6 +1351,7 @@ crc_table:
         DW      0DF1Bh, 05A05h
         DW      0EF8Dh, 02D02h
 
+; Generated by tools/generate_crc_zero_powers.py; 9 x 32 columns.
 crc_zero_powers:
 ; Advance a remainder by 1 zero bytes.
         DW      03096h, 07707h
