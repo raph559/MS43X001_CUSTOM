@@ -9,7 +9,7 @@
 
 OVL_VERSION     EQU     4               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; protocol 4 preserves the full original u8 range
-N_TABLES        EQU     26               ; the live tables (TABLES would be the label tables to AS)
+N_TABLES        EQU     48               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
 W_MAGIC         EQU     0E6B0h           ; C0D3h once the handler has initialised the window
@@ -239,6 +239,160 @@ e_map25:
         CMP     R13, #001Dh
         JMPA    NZ, to_reader
         MOV     R2, #25
+        JMPA    UC, subst
+e_map26:
+        CMP     R12, #2BC5h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #26
+        JMPA    UC, subst
+e_map27:
+        CMP     R12, #2C27h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #27
+        JMPA    UC, subst
+e_map28:
+        CMP     R12, #2C4Bh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #28
+        JMPA    UC, subst
+e_map29:
+        CMP     R12, #2C5Bh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #29
+        JMPA    UC, subst
+e_map30:
+        CMP     R12, #2CDDh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #30
+        JMPA    UC, subst
+e_map31:
+        CMP     R12, #2D0Dh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #31
+        JMPA    UC, subst
+e_map32:
+        CMP     R12, #2D41h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #32
+        JMPA    UC, subst
+e_map33:
+        CMP     R12, #2DC1h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #33
+        JMPA    UC, subst
+e_map34:
+        CMP     R12, #2E41h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #34
+        JMPA    UC, subst
+e_map35:
+        CMP     R12, #2E81h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #35
+        JMPA    UC, subst
+e_map36:
+        CMP     R12, #2F11h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #36
+        JMPA    UC, subst
+e_map37:
+        CMP     R12, #2F21h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #37
+        JMPA    UC, subst
+e_map38:
+        CMP     R12, #2F61h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #38
+        JMPA    UC, subst
+e_map39:
+        CMP     R12, #2FE5h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #39
+        JMPA    UC, subst
+e_map40:
+        CMP     R12, #30A5h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #40
+        JMPA    UC, subst
+e_map41:
+        CMP     R12, #3195h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #41
+        JMPA    UC, subst
+e_map42:
+        CMP     R12, #31D5h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #42
+        JMPA    UC, subst
+e_map43:
+        CMP     R12, #3470h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #43
+        JMPA    UC, subst
+e_map44:
+        CMP     R12, #3494h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #44
+        JMPA    UC, subst
+e_map45:
+        CMP     R12, #35F8h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #45
+        JMPA    UC, subst
+e_map46:
+        CMP     R12, #3638h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #46
+        JMPA    UC, subst
+e_map47:
+        CMP     R12, #3678h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #47
         JMPA    UC, subst
 
 ; R2 identifies a catalogue entry. The original reader overwrites R2-R5 before use.
@@ -1420,6 +1574,28 @@ tables:
         DW      001Dh, 2A98h, 64, 0 ; 23 ip_fac_pl_ivvt__tco__tco_st
         DW      001Dh, 2ADCh, 144, 0 ; 24 ip_fac_pvs_isa__pvs_cor_rpl__n
         DW      001Dh, 2BB5h, 16, 0 ; 25 ip_fac_ron_ad_max__tia__tco
+        DW      001Dh, 2BC5h, 64, 0 ; 26 ip_fac_t_dly__tco__tco_st
+        DW      001Dh, 2C27h, 36, 0 ; 27 ip_fac_tia_tco__tco__tia
+        DW      001Dh, 2C4Bh, 16, 0 ; 28 ip_fac_tia_tco_is__tco__tia
+        DW      001Dh, 2C5Bh, 16, 0 ; 29 ip_fac_toil_facron__toil__facron
+        DW      001Dh, 2CDDh, 48, 0 ; 30 ip_iga_aj_ron91__n__maf
+        DW      001Dh, 2D0Dh, 48, 0 ; 31 ip_iga_aj_ron98__n__maf
+        DW      001Dh, 2D41h, 64, 0 ; 32 ip_iga_ch__n__maf
+        DW      001Dh, 2DC1h, 64, 0 ; 33 ip_iga_ch_cat_var__n__maf
+        DW      001Dh, 2E41h, 64, 0 ; 34 ip_iga_knk_diag__n__maf
+        DW      001Dh, 2E81h, 64, 0 ; 35 ip_iga_knk_diag_ron__n__maf
+        DW      001Dh, 2F11h, 16, 0 ; 36 ip_iga_maf_n_is__n__maf
+        DW      001Dh, 2F21h, 64, 0 ; 37 ip_iga_maf_n_knk_diag__n__maf
+        DW      001Dh, 2F61h, 36, 0 ; 38 ip_iga_maf_n_toil_is__n__maf
+        DW      001Dh, 2FE5h, 192, 0 ; 39 ip_iga_optm_e85__n__maf
+        DW      001Dh, 30A5h, 192, 0 ; 40 ip_iga_optm_ron98__n__maf
+        DW      001Dh, 3195h, 64, 0 ; 41 ip_iga_ref_mon2
+        DW      001Dh, 31D5h, 320, 0 ; 42 ip_iga_ron91_pl__n__maf
+        DW      001Dh, 3470h, 36, 0 ; 43 ip_iga_e85_is__n__maf
+        DW      001Dh, 3494h, 320, 0 ; 44 ip_iga_e85_pl__n__maf
+        DW      001Dh, 35F8h, 64, 0 ; 45 ip_iga_tco_ch_at__tco__t_ast
+        DW      001Dh, 3638h, 64, 0 ; 46 ip_iga_tco_ch_is__tco__t_ast
+        DW      001Dh, 3678h, 64, 0 ; 47 ip_iga_tco_ch_mt__tco__t_ast
 
 crc_table:
         DW      00000h, 00000h
@@ -2041,6 +2217,50 @@ data_end:
         CALLS   0Ch, e_map24 & 0FFFFh
         ORG     0C3A24h
         CALLS   0Ch, e_map25 & 0FFFFh
+        ORG     0DB882h
+        CALLS   0Ch, e_map26 & 0FFFFh
+        ORG     0C3AE2h
+        CALLS   0Ch, e_map27 & 0FFFFh
+        ORG     0C3A82h
+        CALLS   0Ch, e_map28 & 0FFFFh
+        ORG     0C3AB2h
+        CALLS   0Ch, e_map29 & 0FFFFh
+        ORG     09D7D6h
+        CALLS   0Ch, e_map30 & 0FFFFh
+        ORG     09D7C8h
+        CALLS   0Ch, e_map31 & 0FFFFh
+        ORG     0DDAF4h
+        CALLS   0Ch, e_map32 & 0FFFFh
+        ORG     0DDB0Ch
+        CALLS   0Ch, e_map33 & 0FFFFh
+        ORG     0B5DFEh
+        CALLS   0Ch, e_map34 & 0FFFFh
+        ORG     0B5DE2h
+        CALLS   0Ch, e_map35 & 0FFFFh
+        ORG     0AD4CEh
+        CALLS   0Ch, e_map36 & 0FFFFh
+        ORG     0AD542h
+        CALLS   0Ch, e_map37 & 0FFFFh
+        ORG     0AD508h
+        CALLS   0Ch, e_map38 & 0FFFFh
+        ORG     090290h
+        CALLS   0Ch, e_map39 & 0FFFFh
+        ORG     090280h
+        CALLS   0Ch, e_map40 & 0FFFFh
+        ORG     091CFEh
+        CALLS   0Ch, e_map41 & 0FFFFh
+        ORG     0AC65Eh
+        CALLS   0Ch, e_map42 & 0FFFFh
+        ORG     0AC3B4h
+        CALLS   0Ch, e_map43 & 0FFFFh
+        ORG     0AC684h
+        CALLS   0Ch, e_map44 & 0FFFFh
+        ORG     0DD894h
+        CALLS   0Ch, e_map45 & 0FFFFh
+        ORG     0DD85Ch
+        CALLS   0Ch, e_map46 & 0FFFFh
+        ORG     0DD8A6h
+        CALLS   0Ch, e_map47 & 0FFFFh
         ORG     0AA3ACh
         CALLS   0Ch, hard_mode & 0FFFFh
         ORG     0D8C88h
