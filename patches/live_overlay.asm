@@ -9,7 +9,7 @@
 
 OVL_VERSION     EQU     4               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; protocol 4 preserves the full original u8 range
-N_TABLES        EQU     48               ; the live tables (TABLES would be the label tables to AS)
+N_TABLES        EQU     69               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
 W_MAGIC         EQU     0E6B0h           ; C0D3h once the handler has initialised the window
@@ -393,6 +393,153 @@ e_map47:
         CMP     R13, #001Dh
         JMPA    NZ, to_reader
         MOV     R2, #47
+        JMPA    UC, subst
+e_map48:
+        CMP     R12, #3858h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #48
+        JMPA    UC, subst
+e_map49:
+        CMP     R12, #3870h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #49
+        JMPA    UC, subst
+e_map50:
+        CMP     R12, #38B0h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #50
+        JMPA    UC, subst
+e_map51:
+        CMP     R12, #38F8h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #51
+        JMPA    UC, subst
+e_map52:
+        CMP     R12, #393Ch
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #52
+        JMPA    UC, subst
+e_map53:
+        CMP     R12, #3A10h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #53
+        JMPA    UC, subst
+e_map54:
+        CMP     R12, #3A4Ch
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #54
+        JMPA    UC, subst
+e_map55:
+        CMP     R12, #3AA0h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #55
+        JMPA    UC, subst
+e_map56:
+        CMP     R12, #3AC0h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #56
+        JMPA    UC, subst
+e_map57:
+        CMP     R12, #3AFAh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #57
+        JMPA    UC, subst
+e_map58:
+        CMP     R12, #3D27h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #58
+        JMPA    UC, subst
+e_map59:
+        CMP     R12, #3D87h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Dh
+        JMPA    NZ, to_reader
+        MOV     R2, #59
+        JMPA    UC, subst
+e_map60:
+        CMP     R12, #0055h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #60
+        JMPA    UC, subst
+e_map61:
+        CMP     R12, #0079h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #61
+        JMPA    UC, subst
+e_map62:
+        CMP     R12, #00C9h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #62
+        JMPA    UC, subst
+e_map63:
+        CMP     R12, #00EDh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #63
+        JMPA    UC, subst
+e_map64:
+        CMP     R12, #0371h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #64
+        JMPA    UC, subst
+e_map65:
+        CMP     R12, #03B1h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #65
+        JMPA    UC, subst
+e_map66:
+        CMP     R12, #03F1h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #66
+        JMPA    UC, subst
+e_map67:
+        CMP     R12, #0431h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #67
+        JMPA    UC, subst
+e_map68:
+        CMP     R12, #0499h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Eh
+        JMPA    NZ, to_reader
+        MOV     R2, #68
         JMPA    UC, subst
 
 ; R2 identifies a catalogue entry. The original reader overwrites R2-R5 before use.
@@ -1596,6 +1743,27 @@ tables:
         DW      001Dh, 35F8h, 64, 0 ; 45 ip_iga_tco_ch_at__tco__t_ast
         DW      001Dh, 3638h, 64, 0 ; 46 ip_iga_tco_ch_is__tco__t_ast
         DW      001Dh, 3678h, 64, 0 ; 47 ip_iga_tco_ch_mt__tco__t_ast
+        DW      001Dh, 3858h, 24, 0 ; 48 ip_ivvthpwm__tmag__vb
+        DW      001Dh, 3870h, 64, 0 ; 49 ip_lam_i_1__n__maf
+        DW      001Dh, 38B0h, 64, 0 ; 50 ip_lam_i_2__n__maf
+        DW      001Dh, 38F8h, 64, 0 ; 51 ip_lam_neg_p__n__maf
+        DW      001Dh, 393Ch, 64, 0 ; 52 ip_lam_pos_p__n__maf
+        DW      001Dh, 3A10h, 60, 0 ; 53 ip_maf_min_cop__n__iga_dif
+        DW      001Dh, 3A4Ch, 60, 0 ; 54 ip_maf_min_cop_ron__n__iga_dif
+        DW      001Dh, 3AA0h, 32, 0 ; 55 ip_maf_min_knk__n__tco
+        DW      001Dh, 3AC0h, 32, 0 ; 56 ip_maf_min_knk_ron__n__tco
+        DW      001Dh, 3AFAh, 36, 0 ; 57 ip_mis_a_fac__n__maf
+        DW      001Dh, 3D27h, 96, 0 ; 58 ip_pvs_dif_cr_neg__pvs_max__n
+        DW      001Dh, 3D87h, 96, 0 ; 59 ip_pvs_dif_neg_fac__pvs_max__n
+        DW      001Eh, 0055h, 36, 0 ; 60 ip_soi_tco_1_is__n__ti
+        DW      001Eh, 0079h, 80, 0 ; 61 ip_soi_tco_1_pl__n__ti
+        DW      001Eh, 00C9h, 36, 0 ; 62 ip_soi_tco_2_is__n__ti
+        DW      001Eh, 00EDh, 80, 0 ; 63 ip_soi_tco_2_pl__n__ti
+        DW      001Eh, 0371h, 64, 0 ; 64 ip_t_vls_cyc_afl_max__n__maf
+        DW      001Eh, 03B1h, 64, 0 ; 65 ip_t_vls_cyc_afr_max__n__maf
+        DW      001Eh, 03F1h, 64, 0 ; 66 ip_t_vls_cycnr_afl_max__n__maf
+        DW      001Eh, 0431h, 64, 0 ; 67 ip_t_vls_cycnr_afr_max__n__maf
+        DW      001Eh, 0499h, 48, 0 ; 68 ip_temp_fac_ex_down__tes__tam
 
 crc_table:
         DW      00000h, 00000h
@@ -2261,6 +2429,62 @@ data_end:
         CALLS   0Ch, e_map46 & 0FFFFh
         ORG     0DD8A6h
         CALLS   0Ch, e_map47 & 0FFFFh
+        ORG     0B31DCh
+        CALLS   0Ch, e_map48 & 0FFFFh
+        ORG     0B3224h
+        CALLS   0Ch, e_map48 & 0FFFFh
+        ORG     0D85D4h
+        CALLS   0Ch, e_map48 & 0FFFFh
+        ORG     0D862Ch
+        CALLS   0Ch, e_map48 & 0FFFFh
+        ORG     0DC040h
+        CALLS   0Ch, e_map49 & 0FFFFh
+        ORG     0DC0F6h
+        CALLS   0Ch, e_map49 & 0FFFFh
+        ORG     0DC026h
+        CALLS   0Ch, e_map50 & 0FFFFh
+        ORG     0DC0DCh
+        CALLS   0Ch, e_map50 & 0FFFFh
+        ORG     0DC092h
+        CALLS   0Ch, e_map51 & 0FFFFh
+        ORG     0DC146h
+        CALLS   0Ch, e_map52 & 0FFFFh
+        ORG     0C519Ah
+        CALLS   0Ch, e_map53 & 0FFFFh
+        ORG     0C52AAh
+        CALLS   0Ch, e_map53 & 0FFFFh
+        ORG     0C517Ah
+        CALLS   0Ch, e_map54 & 0FFFFh
+        ORG     0C528Ah
+        CALLS   0Ch, e_map54 & 0FFFFh
+        ORG     0B5D2Eh
+        CALLS   0Ch, e_map55 & 0FFFFh
+        ORG     0B5D1Eh
+        CALLS   0Ch, e_map56 & 0FFFFh
+        ORG     0D7166h
+        CALLS   0Ch, e_map57 & 0FFFFh
+        ORG     0BCF24h
+        CALLS   0Ch, e_map58 & 0FFFFh
+        ORG     0BCF44h
+        CALLS   0Ch, e_map59 & 0FFFFh
+        ORG     0CB138h
+        CALLS   0Ch, e_map60 & 0FFFFh
+        ORG     0CB184h
+        CALLS   0Ch, e_map61 & 0FFFFh
+        ORG     0CB128h
+        CALLS   0Ch, e_map62 & 0FFFFh
+        ORG     0CB174h
+        CALLS   0Ch, e_map63 & 0FFFFh
+        ORG     09EC8Eh
+        CALLS   0Ch, e_map64 & 0FFFFh
+        ORG     09ECC0h
+        CALLS   0Ch, e_map65 & 0FFFFh
+        ORG     09E962h
+        CALLS   0Ch, e_map66 & 0FFFFh
+        ORG     09E876h
+        CALLS   0Ch, e_map67 & 0FFFFh
+        ORG     098B3Eh
+        CALLS   0Ch, e_map68 & 0FFFFh
         ORG     0AA3ACh
         CALLS   0Ch, hard_mode & 0FFFFh
         ORG     0D8C88h
