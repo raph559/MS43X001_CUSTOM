@@ -9,7 +9,7 @@
 
 OVL_VERSION     EQU     4               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; protocol 4 preserves the full original u8 range
-N_TABLES        EQU     111               ; the live tables (TABLES would be the label tables to AS)
+N_TABLES        EQU     124               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
 W_MAGIC         EQU     0E6B0h           ; C0D3h once the handler has initialised the window
@@ -834,6 +834,97 @@ e_map110:
         CMP     R13, #001Fh
         JMPA    NZ, to_reader
         MOV     R2, #110
+        JMPA    UC, subst
+e_map111:
+        CMP     R12, #183Ch
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #111
+        JMPA    UC, subst
+e_map112:
+        CMP     R12, #186Ch
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #112
+        JMPA    UC, subst
+e_map113:
+        CMP     R12, #18ECh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #113
+        JMPA    UC, subst
+e_map114:
+        CMP     R12, #192Ch
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #114
+        JMPA    UC, subst
+e_map115:
+        CMP     R12, #1944h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #115
+        JMPA    UC, subst
+e_map116:
+        CMP     R12, #195Ch
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #116
+        JMPA    UC, subst
+e_map117:
+        CMP     R12, #2C72h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #117
+        JMPA    UC, subst
+e_map118:
+        CMP     R12, #2CB4h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #118
+        JMPA    UC, subst
+e_map119:
+        CMP     R12, #2CF4h
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #119
+        JMPA    UC, subst
+e_map120:
+        CMP     R12, #2D3Ah
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #120
+        JMPA    UC, subst
+e_map121:
+        CMP     R12, #2D7Ah
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #121
+        JMPA    UC, subst
+e_map122:
+        CMP     R12, #2DBAh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #122
+        JMPA    UC, subst
+e_map123:
+        CMP     R12, #2DCAh
+        JMPA    NZ, to_reader
+        CMP     R13, #001Fh
+        JMPA    NZ, to_reader
+        MOV     R2, #123
         JMPA    UC, subst
 
 ; R2 identifies a catalogue entry. The original reader overwrites R2-R5 before use.
@@ -2100,6 +2191,19 @@ tables:
         DW      001Eh, 11A9h, 64, 0 ; 108 ip_vls_sp_dly__n__maf
         DW      001Fh, 175Ch, 192, 0 ; 109 ip_af_target_e85__maf__n
         DW      001Fh, 181Ch, 32, 0 ; 110 ip_ti_cr_cst_e85__cyc__tco
+        DW      001Fh, 183Ch, 48, 0 ; 111 ip_ti_cr_cast_e85__cyc__tco
+        DW      001Fh, 186Ch, 64, 0 ; 112 ip_fac_rest_e85__t_ast__tco_stop
+        DW      001Fh, 18ECh, 64, 0 ; 113 ip_ti_wup_e85__n__maf
+        DW      001Fh, 192Ch, 24, 0 ; 114 ip_ti_tco_wup_e85__tco__tco_st
+        DW      001Fh, 1944h, 24, 0 ; 115 ip_ti_tco_wup_is_e85__tco__tco_st
+        DW      001Fh, 195Ch, 16, 0 ; 116 ip_ti_cast_e85__tia__tco
+        DW      001Fh, 2C72h, 64, 0 ; 117 ip_iga_ref_mon
+        DW      001Fh, 2CB4h, 64, 0 ; 118 ip_maf_sub_mon
+        DW      001Fh, 2CF4h, 64, 0 ; 119 ip_pq_main_col_tq_mon
+        DW      001Fh, 2D3Ah, 64, 0 ; 120 ip_tq_loss_mon
+        DW      001Fh, 2D7Ah, 64, 0 ; 121 ip_tq_max_mon
+        DW      001Fh, 2DBAh, 16, 0 ; 122 ip_tqi_dif_max_mon
+        DW      001Fh, 2DCAh, 64, 0 ; 123 ip_tqi_ref_mon
 
 crc_table:
         DW      00000h, 00000h
@@ -2929,6 +3033,32 @@ data_end:
         CALLS   0Ch, e_map109 & 0FFFFh
         ORG     0CA912h
         CALLS   0Ch, e_map110 & 0FFFFh
+        ORG     0CABC4h
+        CALLS   0Ch, e_map111 & 0FFFFh
+        ORG     0CA97Ch
+        CALLS   0Ch, e_map112 & 0FFFFh
+        ORG     0CAD6Ah
+        CALLS   0Ch, e_map113 & 0FFFFh
+        ORG     0CB342h
+        CALLS   0Ch, e_map114 & 0FFFFh
+        ORG     0CB36Eh
+        CALLS   0Ch, e_map115 & 0FFFFh
+        ORG     0CB3C8h
+        CALLS   0Ch, e_map116 & 0FFFFh
+        ORG     0D240Eh
+        CALLS   0Ch, e_map117 & 0FFFFh
+        ORG     0D2FBAh
+        CALLS   0Ch, e_map118 & 0FFFFh
+        ORG     0D302Ch
+        CALLS   0Ch, e_map119 & 0FFFFh
+        ORG     0D3AEAh
+        CALLS   0Ch, e_map120 & 0FFFFh
+        ORG     0D3ABCh
+        CALLS   0Ch, e_map121 & 0FFFFh
+        ORG     0D256Eh
+        CALLS   0Ch, e_map122 & 0FFFFh
+        ORG     0D24BEh
+        CALLS   0Ch, e_map123 & 0FFFFh
         ORG     0AA3ACh
         CALLS   0Ch, hard_mode & 0FFFFh
         ORG     0D8C88h
