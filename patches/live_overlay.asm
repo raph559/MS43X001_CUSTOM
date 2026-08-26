@@ -1,4 +1,4 @@
-; MS43X001 live overlay protocol 4. See docs/live-overlay-v4.md.
+; MS43X001 live overlay protocol 5. See docs/live-overlay-v5.md.
 ; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
 ; Main/AFR/exhaust: 041D00..041FBF; private request: 041FC0..041FD7; limiter: 041FD8..041FDF.
@@ -7,25 +7,26 @@
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     4               ; (AS predefines VERSION)
-RICHER_ONLY     EQU     0               ; protocol 4 preserves the full original u8 range
+OVL_VERSION     EQU     5               ; (AS predefines VERSION)
+RICHER_ONLY     EQU     0               ; preserves the full original u8 range
 N_TABLES        EQU     124               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
-W_MAGIC         EQU     0E6B0h           ; C0D3h once the handler has initialised the window
+W_MAGIC         EQU     0E6B0h           ; C0D5h once the handler has initialised the window
 W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
-W_DIR           EQU     0E6B8h           ; 5 entries of 8 bytes: state, map ID, logical offset, CRC32
+W_DIR           EQU     0E6B8h           ; base records: state, ID, offset/4, control/link, CRC32
 W_COPY          EQU     0E6E0h           ; control end, followed by idle ignition and intake cam
+W_BITMAP        EQU     0E7B4h           ; 16-byte allocation presence index, only with overflow records
 COPY_BYTES      EQU     932
 MOST_WRITE      EQU     112             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0D4h
+MAGIC           EQU     0C0D5h
 SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
 W_SESSION       EQU     0E6B4h
 W_REV           EQU     0E7C4h
 W_PATCH         EQU     09FC0h
 REQ_SESSION     EQU     0F6D1h
 REQ_REV         EQU     0F6D5h
-MAX_SLOTS       EQU     5
+BASE_SLOTS      EQU     5
 W_HARD          EQU     09FD8h
 ST_FREE         EQU     0
 ST_LOADED       EQU     1
@@ -933,35 +934,67 @@ subst:
         MOV     R3, W_MAGIC
         CMP     R3, #MAGIC
         JMPR    NZ, to_reader
-        MOV     R4, R2
-        SHL     R4, #8
-        OR      R4, #ST_ON
+        MOV     R5, R2
+        SHL     R5, #8
+        OR      R5, #ST_ON
+        EXTP    #3, #1
+        MOVBZ   R4, W_DIR+35
+        CMP     R4, #255
+        JMPR    Z, rd_base
+        MOV     R3, R2
+        SHR     R3, #3
+        ADD     R3, #W_BITMAP
+        EXTP    #3, #1
+        MOVB    RL4, [R3]
+        MOVBZ   R4, RL4
+        AND     R2, #7
+        SHR     R4, R2
+        JNB     R4.0, to_reader
+rd_base:
         MOV     R3, #W_DIR
+rd_loop:
         EXTP    #3, #1
-        CMP     R4, [R3]
+        CMP     R5, [R3]
         JMPR    Z, rd_found
         ADD     R3, #8
         EXTP    #3, #1
-        CMP     R4, [R3]
+        CMP     R5, [R3]
         JMPR    Z, rd_found
         ADD     R3, #8
         EXTP    #3, #1
-        CMP     R4, [R3]
+        CMP     R5, [R3]
         JMPR    Z, rd_found
         ADD     R3, #8
         EXTP    #3, #1
-        CMP     R4, [R3]
+        CMP     R5, [R3]
         JMPR    Z, rd_found
         ADD     R3, #8
         EXTP    #3, #1
-        CMP     R4, [R3]
-        JMPR    NZ, to_reader
+        CMP     R5, [R3]
+        JMPR    Z, rd_found
+rd_link:
+        EXTP    #3, #1
+        MOV     R4, [R3+2]
+        SHR     R4, #8
+        CMP     R4, #51
+        JMPR    UGT, to_reader
+        SHL     R4, #2
+        ADD     R4, #W_COPY
+        ADD     R3, #8
+        CMP     R4, R3
+        JMPR    ULT, to_reader
+        MOV     R3, R4
+        EXTP    #3, #1
+        CMP     R5, [R3]
+        JMPR    NZ, rd_link
 rd_found:
         CALLA   UC, off_due
         CMP     R4, #0
         JMPR    NZ, to_reader
         EXTP    #3, #1
-        MOV     R4, [R3+2]
+        MOVB    RL4, [R3+2]
+        MOVBZ   R4, RL4
+        SHL     R4, #2
         MOV     R13, #10h
         CMP     R4, #704
         JMPR    ULT, rd_external
@@ -973,6 +1006,7 @@ rd_found:
 rd_external:
         ADD     R4, #1D00h
         MOV     R12, R4
+
 to_reader:
         JMPS    0Dh, 029Ah
 
@@ -1016,6 +1050,9 @@ h_zero:
         ADD     R5, #2
         CMP     R5, #W_COPY
         JMPR    ULT, h_zero
+        MOVB    RL4, #0FFh
+        EXTP    #3, #1
+        MOVB    W_DIR+35, RL4
         CALLA   UC, hard_init
         MOV     R4, #MAGIC
         EXTP    #3, #1
@@ -1065,7 +1102,7 @@ h_auth:
         MOVBZ   R5, REQ_SUB
         CMP     R5, #1
         JMPR    NZ, h_write
-        CMP     R4, #8
+        CMP     R4, #9
         JMPA    NZ, bad_len
         JMPA    UC, sub_load
 h_write:
@@ -1173,12 +1210,14 @@ sub_load:
         SHL     R6, #8
         MOVBZ   R4, REQ_ARG+2
         OR      R6, R4
-        JB      R6.0, ld_bad_range
+        MOV     R4, R6
+        AND     R4, #3
+        JMPA    NZ, bad_range
         CALLA   UC, table_info
-        MOV     R7, R6
-        ADD     R7, R10
         CMP     R6, #COPY_BYTES
         JMPA    UGE, bad_range
+        MOV     R7, R6
+        ADD     R7, R10
         CMP     R7, #COPY_BYTES
         JMPA    UGT, bad_range
         CMP     R6, #704
@@ -1188,53 +1227,125 @@ sub_load:
 ld_boundary_ok:
         CALLA   UC, entry_addr
         CMP     R3, #0
-        JMPR    Z, ld_find_free
+        JMPR    Z, ld_new
         EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_ON
         JMPA    Z, refuse_on
-        JMPR    UC, ld_check_overlap
-ld_find_free:
+        MOVBZ   R4, REQ_ARG+3
+        CMP     R3, #W_COPY
+        JMPR    UGE, ld_existing_extra
+        CMP     R4, #255
+        JMPA    NZ, bad_range
+        JMPA    UC, ld_check_overlap
+ld_existing_extra:
+        CMP     R4, #51
+        JMPA    UGT, bad_range
+        SHL     R4, #2
+        ADD     R4, #W_COPY
+        CMP     R4, R3
+        JMPA    NZ, bad_range
+        JMPA    UC, ld_check_overlap
+ld_new:
+        MOVBZ   R4, REQ_ARG+3
+        CMP     R4, #255
+        JMPR    Z, ld_find_base
+        CMP     R4, #51
+        JMPA    UGT, bad_range
+        SHL     R4, #2
+        ADD     R4, #W_COPY
+        MOV     R3, R4
+        JMPA    UC, ld_check_overlap
+ld_find_base:
         MOV     R3, #W_DIR
-ld_free_loop:
+ld_base_loop:
         EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_FREE
         JMPR    Z, ld_check_overlap
         ADD     R3, #8
-        CMP     R3, #(W_DIR+8*MAX_SLOTS)
-        JMPR    ULT, ld_free_loop
+        CMP     R3, #(W_DIR+8*BASE_SLOTS)
+        JMPR    ULT, ld_base_loop
         JMPA    UC, bad_overlap
-ld_bad_range:
-        JMPA    UC, bad_range
 ld_check_overlap:
+        MOV     R15, #0FFFFh
+        CMP     R3, #W_COPY
+        JMPR    ULT, ld_other_start
+        MOV     R15, R3
+        SUB     R15, #(W_COPY-704)
+        MOV     R8, R15
+        ADD     R8, #8
+        CMP     R6, R8
+        JMPR    UGE, ld_other_start
+        CMP     R7, R15
+        JMPA    UGT, bad_overlap
+ld_other_start:
+        EXTP    #3, #1
+        MOVBZ   R4, W_DIR+35
+        CMP     R4, #255
+        JMPR    NZ, ld_index_needed
+        CMP     R3, #W_COPY
+        JMPR    ULT, ld_index_ok
+ld_index_needed:
+        CMP     R7, #916
+        JMPA    UGT, bad_overlap
+ld_index_ok:
         MOV     R9, #W_DIR
 ld_overlap_loop:
-        CMP     R9, R3
-        JMPR    Z, ld_overlap_next
         EXTP    #3, #1
         MOVB    RL4, [R9]
         CMPB    RL4, #ST_FREE
         JMPR    Z, ld_overlap_next
+        CMP     R9, R3
+        JMPR    NZ, ld_other
         EXTP    #3, #1
-        MOV     R8, [R9+2]
-        CMP     R7, R8
-        JMPR    ULE, ld_overlap_next
+        MOVB    RL4, [R9+1]
+        MOVBZ   R4, RL4
+        CMP     R4, R2
+        JMPA    NZ, bad_overlap
+        JMPR    UC, ld_overlap_next
+ld_other:
         MOV     [-R0], R2
         EXTP    #3, #1
         MOVB    RL4, [R9+1]
         MOVBZ   R2, RL4
         CALLA   UC, table_info
         MOV     R2, [R0+]
-        ADD     R8, R10
-        CMP     R6, R8
-        JMPA    ULT, bad_overlap
+        EXTP    #3, #1
+        MOVB    RL4, [R9+2]
+        MOVBZ   R8, RL4
+        SHL     R8, #2
+        MOV     R5, R8
+        ADD     R5, R10
+        CMP     R15, #0FFFFh
+        JMPR    Z, ld_other_index_ok
+        CMP     R5, #916
+        JMPA    UGT, bad_overlap
+ld_other_index_ok:
+        CALLA   UC, load_range_conflict
+        CMP     R4, #0
+        JMPA    NZ, bad_overlap
+        CMP     R9, #W_COPY
+        JMPR    ULT, ld_overlap_next
+        MOV     R8, R9
+        SUB     R8, #(W_COPY-704)
+        MOV     R5, R8
+        ADD     R5, #8
+        CALLA   UC, load_range_conflict
+        CMP     R4, #0
+        JMPA    NZ, bad_overlap
 ld_overlap_next:
-        ADD     R9, #8
-        CMP     R9, #(W_DIR+8*MAX_SLOTS)
-        JMPR    ULT, ld_overlap_loop
+        MOV     [-R0], R3
+        MOV     R3, R9
+        CALLA   UC, entry_next
+        MOV     R9, R3
+        MOV     R3, [R0+]
+        CMP     R9, #0
+        JMPA    NZ, ld_overlap_loop
+        MOV     R4, R6
+        SHR     R4, #2
         EXTP    #3, #2
-        MOV     [R3+2], R6
+        MOVB    [R3+2], RL4
         MOVB    [R3+1], RL2
         CALLA   UC, ram_info
         CALLA   UC, table_info
@@ -1251,10 +1362,34 @@ ld_copy:
         EXTP    #3, #2
         MOV     [R3+4], R4
         MOV     [R3+6], R4
+        CALLA   UC, bitmap_include
         MOV     R4, #ST_LOADED
         EXTP    #3, #1
         MOVB    [R3], RL4
+        CALLA   UC, link_entry
         JMPA    UC, ack
+
+; Other allocation [R8,R5); requested data [R6,R7), optional record R15.
+load_range_conflict:
+        CMP     R7, R8
+        JMPR    ULE, lrc_record
+        CMP     R6, R5
+        JMPR    ULT, lrc_bad
+lrc_record:
+        CMP     R15, #0FFFFh
+        JMPR    Z, lrc_ok
+        MOV     R4, R15
+        ADD     R4, #8
+        CMP     R4, R8
+        JMPR    ULE, lrc_ok
+        CMP     R15, R5
+        JMPR    ULT, lrc_bad
+lrc_ok:
+        MOV     R4, #0
+        RET
+lrc_bad:
+        MOV     R4, #1
+        RET
 
 ; ---- write i, at, data: into a loaded or ready table's copy from its byte at; the table becomes Loaded ----
 sub_write:
@@ -1376,9 +1511,9 @@ an_check:
         CMP     R4, #0
         JMPA    NZ, refuse_b1
 an_cnext:
-        ADD     R3, #8
-        CMP     R3, #(W_DIR+8*MAX_SLOTS)
-        JMPR    ULT, an_check
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    NZ, an_check
         MOV     R3, #W_DIR
 an_on:
         EXTP    #3, #1
@@ -1389,9 +1524,9 @@ an_on:
         EXTP    #3, #1
         MOVB    [R3], RL4
 an_onext:
-        ADD     R3, #8
-        CMP     R3, #(W_DIR+8*MAX_SLOTS)
-        JMPR    ULT, an_on
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    NZ, an_on
         EXTP    #10h, #1
         MOVBZ   R4, W_HARD+7
         JNB     R4.5, an_done
@@ -1422,8 +1557,16 @@ sub_revert:
 rv_loop:
         CALLA   UC, free_entry
         ADD     R3, #8
-        CMP     R3, #(W_DIR+8*MAX_SLOTS)
+        CMP     R3, #(W_DIR+8*BASE_SLOTS)
         JMPR    ULT, rv_loop
+rv_extra:
+        MOV     R3, #(W_DIR+32)
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    Z, rv_limiter
+        CALLA   UC, free_entry
+        JMPR    UC, rv_extra
+rv_limiter:
         EXTP    #10h, #1
         MOVBZ   R4, W_HARD+7
         AND     R4, #41h
@@ -1431,7 +1574,7 @@ rv_loop:
         MOVB    W_HARD+7, RL4
         JMPA    UC, ack
 
-; ---- status: 56 payload bytes, including the session and revision ----
+; ---- status: 64 payload bytes, including the session, revision and limiter ----
 sub_status:
         CALLA   UC, running
         MOV     R13, R4                 ; 1 while the engine runs
@@ -1449,11 +1592,10 @@ sub_status:
         MOV     R5, #(REP_DATA + 6)
 st_entry:
         EXTP    #3, #1
-        MOV     R4, [R3]                ; the state, then 0
+        MOV     R4, [R3]                ; state, then catalogue ID
         MOV     [R5], R4
         EXTP    #3, #1
-        MOV     R4, [R3+2]              ; the copy offset
-        ROL     R4, #8
+        MOV     R4, [R3+2]              ; packed offset/4 and control/link
         MOV     [R5+2], R4
         EXTP    #3, #1
         MOV     R4, [R3+6]              ; high CRC word first on the wire
@@ -1465,9 +1607,15 @@ st_entry:
         MOV     [R5+6], R4
         ADD     R3, #8
         ADD     R5, #8
-        CMP     R3, #(W_DIR + 8*MAX_SLOTS)
+        CMP     R3, #(W_DIR + 8*BASE_SLOTS)
         JMPR    ULT, st_entry
         MOV     R9, #COPY_BYTES
+        EXTP    #3, #1
+        MOVBZ   R4, W_DIR+35
+        CMP     R4, #255
+        JMPR    Z, fr_no_index
+        SUB     R9, #16
+fr_no_index:
         MOV     R3, #W_DIR
 fr_loop:
         EXTP    #3, #1
@@ -1480,9 +1628,13 @@ fr_loop:
         CALLA   UC, table_info
         SUB     R9, R10
 fr_next:
-        ADD     R3, #8
-        CMP     R3, #(W_DIR + 8*MAX_SLOTS)
-        JMPR    ULT, fr_loop
+        CMP     R3, #W_COPY
+        JMPR    ULT, fr_step
+        SUB     R9, #8
+fr_step:
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    NZ, fr_loop
         ROL     R9, #8
         MOV     REP_DATA+46, R9
         MOVB    RL4, #0A0h
@@ -1739,7 +1891,9 @@ patch_dword:
 ; RAM page/offset are immutable, independent of directory contents.
 ram_info:
         EXTP    #3, #1
-        MOV     R13, [R3+2]
+        MOVB    RL4, [R3+2]
+        MOVBZ   R13, RL4
+        SHL     R13, #2
         MOV     R14, #10h
         CMP     R13, #704
         JMPR    ULT, ri_external
@@ -1876,34 +2030,136 @@ od_yes:
 
 ; ---- all_off: every On table to Ready, its copy kept; uses R3, R4 ----
 all_off:
+        MOV     [-R0], R5
+        MOV     R5, #0
         MOV     R3, #W_DIR
 ao_loop:
         EXTP    #3, #1
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_ON
         JMPR    NZ, ao_next
+        MOV     R5, #1
         MOV     R4, #ST_READY
         EXTP    #3, #1
         MOVB    [R3], RL4
 ao_next:
-        ADD     R3, #8
-        CMP     R3, #(W_DIR + 8*MAX_SLOTS)
-        JMPR    ULT, ao_loop
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    NZ, ao_loop
         EXTP    #10h, #1
         MOVBZ   R4, W_HARD+7
+        JNB     R4.7, ao_epoch
+        MOV     R5, #1
         AND     R4, #7Fh
         EXTP    #10h, #1
         MOVB    W_HARD+7, RL4
+ao_epoch:
+        CMP     R5, #0
+        JMPR    Z, ao_done
+        EXTP    #3, #1
+        MOVBZ   R4, W_DIR+3
+        ADD     R4, #1
+        EXTP    #3, #1
+        MOVB    W_DIR+3, RL4
+        CMP     R4, #100h
+        JMPR    NZ, ao_done
+        EXTP    #3, #1
+        MOVBZ   R4, W_DIR+11
+        ADD     R4, #1
+        EXTP    #3, #1
+        MOVB    W_DIR+11, RL4
+ao_done:
+        MOV     R5, [R0+]
         RET
 
-; ---- free_entry: the entry at R3 to Free, its offset and CRC 0; the state first, so no stub substitutes after it. Uses R4 ----
+; Fixed control bytes survive Free. Overflow records are unlinked before reuse.
 free_entry:
+        CALLA   UC, bitmap_remove
+        CMP     R3, #W_COPY
+        JMPR    ULT, fe_clear
+        MOV     [-R0], R5
+        MOV     [-R0], R6
+        MOV     R6, R3
+        MOV     R3, #(W_DIR+32)
+fe_find:
+        MOV     R5, R3
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    Z, fe_unlinked
+        CMP     R3, R6
+        JMPR    NZ, fe_find
+        EXTP    #3, #1
+        MOVB    RL4, [R3+3]
+        EXTP    #3, #1
+        MOVB    [R5+3], RL4
+fe_unlinked:
+        MOV     R3, R6
+        MOV     R6, [R0+]
+        MOV     R5, [R0+]
+fe_clear:
         MOV     R4, #0
         EXTP    #3, #4
         MOV     [R3], R4
-        MOV     [R3+2], R4
+        MOVB    [R3+2], RL4
         MOV     [R3+4], R4
         MOV     [R3+6], R4
+        RET
+
+; Links increase within the 228-byte XRAM pool. Invalid links end the lookup.
+entry_next:
+        CMP     R3, #(W_DIR+32)
+        JMPR    ULT, en_base
+        EXTP    #3, #1
+        MOVB    RL4, [R3+3]
+        MOVBZ   R4, RL4
+        CMP     R4, #51
+        JMPR    UGT, en_end
+        SHL     R4, #2
+        ADD     R4, #W_COPY
+        ADD     R3, #8
+        CMP     R4, R3
+        JMPR    ULT, en_end
+        MOV     R3, R4
+        RET
+en_base:
+        ADD     R3, #8
+        RET
+en_end:
+        MOV     R3, #0
+        RET
+
+; Publish a complete extra record with one predecessor-link byte store.
+link_entry:
+        CMP     R3, #W_COPY
+        JMPR    ULT, le_done
+        MOV     R6, R3
+        MOV     R3, #(W_DIR+32)
+le_find:
+        MOV     R5, R3
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    Z, le_insert
+        CMP     R3, R6
+        JMPR    Z, le_restore
+        JMPR    ULT, le_find
+le_insert:
+        MOV     R4, #255
+        CMP     R3, #0
+        JMPR    Z, le_tail
+        MOV     R4, R3
+        SUB     R4, #W_COPY
+        SHR     R4, #2
+le_tail:
+        EXTP    #3, #1
+        MOVB    [R6+3], RL4
+        MOV     R4, R6
+        SUB     R4, #W_COPY
+        SHR     R4, #2
+        EXTP    #3, #1
+        MOVB    [R5+3], RL4
+le_restore:
+        MOV     R3, R6
+le_done:
         RET
 
 ; Find a loaded map by catalogue ID; zero when it has no allocation.
@@ -1920,11 +2176,95 @@ ea_loop:
         CMP     R4, R2
         JMPR    Z, ea_done
 ea_next:
-        ADD     R3, #8
-        CMP     R3, #(W_DIR+8*MAX_SLOTS)
-        JMPR    ULT, ea_loop
+        CALLA   UC, entry_next
+        CMP     R3, #0
+        JMPR    NZ, ea_loop
         MOV     R3, #0
 ea_done:
+        RET
+
+; The first extra record reserves the final 16 pool-B bytes. Publish its head only
+; after the complete index exists. Later updates change one allocation bit.
+bitmap_include:
+        EXTP    #3, #1
+        MOVBZ   R4, W_DIR+35
+        CMP     R4, #255
+        JMPR    NZ, bi_set
+        CMP     R3, #W_COPY
+        JMPR    ULT, bi_done
+        MOV     [-R0], R2
+        MOV     [-R0], R3
+        MOV     R4, #W_BITMAP
+        MOV     R5, #0
+bi_clear:
+        EXTP    #3, #1
+        MOV     [R4], R5
+        ADD     R4, #2
+        CMP     R4, #(W_BITMAP+16)
+        JMPR    ULT, bi_clear
+        MOV     R3, #W_DIR
+bi_base:
+        EXTP    #3, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_FREE
+        JMPR    Z, bi_next
+        EXTP    #3, #1
+        MOVB    RL4, [R3+1]
+        MOVBZ   R2, RL4
+        CALLA   UC, bitmap_set
+bi_next:
+        ADD     R3, #8
+        CMP     R3, #(W_DIR+40)
+        JMPR    ULT, bi_base
+        MOV     R3, [R0+]
+        MOV     R2, [R0+]
+bi_set:
+        CALLA   UC, bitmap_set
+bi_done:
+        RET
+
+; R2 is the allocated ID. R3 is preserved; R4-R6 are scratch.
+bitmap_set:
+        CALLA   UC, bitmap_bit
+        EXTP    #3, #1
+        MOVB    RL5, [R4]
+        ORB     RL5, RL6
+        EXTP    #3, #1
+        MOVB    [R4], RL5
+        RET
+
+bitmap_bit:
+        MOV     R4, R2
+        SHR     R4, #3
+        ADD     R4, #W_BITMAP
+        MOV     R5, R2
+        AND     R5, #7
+        MOV     R6, #1
+        SHL     R6, R5
+        RET
+
+bitmap_remove:
+        EXTP    #3, #1
+        MOVBZ   R4, W_DIR+35
+        CMP     R4, #255
+        JMPR    Z, br_done
+        MOV     [-R0], R2
+        MOV     [-R0], R5
+        MOV     [-R0], R6
+        EXTP    #3, #1
+        MOVB    RL4, [R3+1]
+        MOVBZ   R2, RL4
+        CALLA   UC, bitmap_bit
+        EXTP    #3, #1
+        MOVB    RL5, [R4]
+        XOR     R6, #0FFFFh
+        ANDB    RL5, RL6
+        EXTP    #3, #1
+        MOVB    [R4], RL5
+        MOV     R6, [R0+]
+        MOV     R5, [R0+]
+        MOV     R2, [R0+]
+br_done:
         RET
 
 ; ---- table_info: table R2's flash page (R11), page offset (R12), bytes (R10); uses R5 ----
