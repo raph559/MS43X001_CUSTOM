@@ -1,4 +1,4 @@
-; MS43X001 live overlay protocol 5. See docs/live-overlay-v5.md.
+; MS43X001 live overlay protocol 6. See docs/live-overlay-v6.md.
 ; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
 ; Main/AFR/exhaust: 041D00..041FBF; private request: 041FC0..041FD7; limiter: 041FD8..041FDF.
@@ -7,19 +7,19 @@
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     5               ; (AS predefines VERSION)
+OVL_VERSION     EQU     6               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; preserves the full original u8 range
-N_TABLES        EQU     124               ; the live tables (TABLES would be the label tables to AS)
+N_TABLES        EQU     127               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
-W_MAGIC         EQU     0E6B0h           ; C0D5h once the handler has initialised the window
+W_MAGIC         EQU     0E6B0h           ; C0D6h once the handler has initialised the window
 W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
 W_DIR           EQU     0E6B8h           ; base records: state, ID, offset/4, control/link, CRC32
 W_COPY          EQU     0E6E0h           ; control end, followed by idle ignition and intake cam
 W_BITMAP        EQU     0E7B4h           ; 16-byte allocation presence index, only with overflow records
 COPY_BYTES      EQU     932
 MOST_WRITE      EQU     112             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0D5h
+MAGIC           EQU     0C0D6h
 SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
 W_SESSION       EQU     0E6B4h
 W_REV           EQU     0E7C4h
@@ -53,7 +53,7 @@ header: DB      "LTOV"                  ; the signature the app reads with DS2 c
         DW      code_end & 0FFFFh
         DW      data_end & 0FFFFh
         DW      N_TABLES
-        DW      0
+        DW      MAGIC
 
 code_start:
 
@@ -1421,6 +1421,9 @@ sub_write:
         JMPA    Z, refuse_free
         CMPB    RL4, #ST_ON
         JMPA    Z, refuse_on            ; never into a copy the reader may be reading
+        CALLA   UC, feature_write_validate
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
         CALLA   UC, ram_info
         ADD     R13, R6
         MOV     R12, #(REQ_ARG + 3)     ; the data: F6DC on
@@ -1666,6 +1669,13 @@ verify:
         MOV     [-R0], R7
         CALLA   UC, table_info
         CALLA   UC, ram_info
+        CALLA   UC, feature_validate
+        CMP     R4, #0
+        JMPR    Z, vf_content
+        MOV     R7, [R0+]
+        MOV     R6, [R0+]
+        RET
+vf_content:
         MOV     R15, #0
         CALLA   UC, content_crc
         MOV     R7, [R0+]
@@ -1752,6 +1762,11 @@ pt_snapshot:
         JMPA    UGT, bad_table
         CMP     R4, #0
         JMPA    NZ, bad_range
+        MOV     R13, #(W_PATCH+12)
+        MOV     R14, #10h
+        CALLA   UC, feature_validate
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
         CALLA   UC, table_info
         EXTP    #10h, #1
         MOV     R6, W_PATCH+10
@@ -2416,6 +2431,9 @@ pm_loop:
 ; V4 limiter helpers are included here, before the header's catalogue pointer.
         INCLUDE "live_overlay_v4_limiter.inc"
 
+        INCLUDE "live_overlay_v6_feature_helpers.inc"
+        INCLUDE "live_overlay_v6_feature_stubs.inc"
+
 code_end:
 
 ; The catalogue: flash page, page offset, bytes, flags.
@@ -2544,6 +2562,10 @@ tables:
         DW      001Fh, 2D7Ah, 64, 0 ; 121 ip_tq_max_mon
         DW      001Fh, 2DBAh, 16, 0 ; 122 ip_tqi_dif_max_mon
         DW      001Fh, 2DCAh, 64, 0 ; 123 ip_tqi_ref_mon
+
+        DW      001Ch, 132Ch, 8, 2 ; 124 launch_control
+        DW      001Ch, 1334h, 8, 2 ; 125 no_lift_shift
+        DW      001Ch, 133Ch, 8, 2 ; 126 rolling_anti_lag (7 fields + protected neighbor)
 
 crc_table:
         DW      00000h, 00000h
@@ -3104,6 +3126,8 @@ crc_zero_powers:
         DW      07F11h, 0EC44h
 
 data_end:
+
+        INCLUDE "live_overlay_v6_feature_hooks.inc"
 
         ORG     0AC650h
         CALLS   0Ch, e_map0 & 0FFFFh
