@@ -1,4 +1,4 @@
-; MS43X001 live overlay protocol 6. See docs/live-overlay-v6.md.
+; MS43X001 live overlay protocol 7. See docs/live-overlay-v7.md.
 ; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
 ; Main/AFR/exhaust: 041D00..041FBF; private request: 041FC0..041FD7; limiter: 041FD8..041FDF.
@@ -7,19 +7,19 @@
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     6               ; (AS predefines VERSION)
+OVL_VERSION     EQU     7               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; preserves the full original u8 range
-N_TABLES        EQU     127               ; the live tables (TABLES would be the label tables to AS)
+N_TABLES        EQU     138               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
-W_MAGIC         EQU     0E6B0h           ; C0D6h once the handler has initialised the window
+W_MAGIC         EQU     0E6B0h           ; C0D7h once the handler has initialised the window
 W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
 W_DIR           EQU     0E6B8h           ; base records: state, ID, offset/4, control/link, CRC32
 W_COPY          EQU     0E6E0h           ; control end, followed by idle ignition and intake cam
-W_BITMAP        EQU     0E7B4h           ; 16-byte allocation presence index, only with overflow records
+W_BITMAP        EQU     0E7B0h           ; 20-byte allocation presence index, only with overflow records
 COPY_BYTES      EQU     932
 MOST_WRITE      EQU     112             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0D6h
+MAGIC           EQU     0C0D7h
 SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
 W_SESSION       EQU     0E6B4h
 W_REV           EQU     0E7C4h
@@ -976,7 +976,7 @@ rd_link:
         EXTP    #3, #1
         MOV     R4, [R3+2]
         SHR     R4, #8
-        CMP     R4, #51
+        CMP     R4, #50
         JMPR    UGT, to_reader
         SHL     R4, #2
         ADD     R4, #W_COPY
@@ -1239,7 +1239,7 @@ ld_boundary_ok:
         JMPA    NZ, bad_range
         JMPA    UC, ld_check_overlap
 ld_existing_extra:
-        CMP     R4, #51
+        CMP     R4, #50
         JMPA    UGT, bad_range
         SHL     R4, #2
         ADD     R4, #W_COPY
@@ -1250,7 +1250,7 @@ ld_new:
         MOVBZ   R4, REQ_ARG+3
         CMP     R4, #255
         JMPR    Z, ld_find_base
-        CMP     R4, #51
+        CMP     R4, #50
         JMPA    UGT, bad_range
         SHL     R4, #2
         ADD     R4, #W_COPY
@@ -1287,7 +1287,7 @@ ld_other_start:
         CMP     R3, #W_COPY
         JMPR    ULT, ld_index_ok
 ld_index_needed:
-        CMP     R7, #916
+        CMP     R7, #912
         JMPA    UGT, bad_overlap
 ld_index_ok:
         MOV     R9, #W_DIR
@@ -1319,7 +1319,7 @@ ld_other:
         ADD     R5, R10
         CMP     R15, #0FFFFh
         JMPR    Z, ld_other_index_ok
-        CMP     R5, #916
+        CMP     R5, #912
         JMPA    UGT, bad_overlap
 ld_other_index_ok:
         CALLA   UC, load_range_conflict
@@ -1617,7 +1617,7 @@ st_entry:
         MOVBZ   R4, W_DIR+35
         CMP     R4, #255
         JMPR    Z, fr_no_index
-        SUB     R9, #16
+        SUB     R9, #20
 fr_no_index:
         MOV     R3, #W_DIR
 fr_loop:
@@ -2127,7 +2127,7 @@ entry_next:
         EXTP    #3, #1
         MOVB    RL4, [R3+3]
         MOVBZ   R4, RL4
-        CMP     R4, #51
+        CMP     R4, #50
         JMPR    UGT, en_end
         SHL     R4, #2
         ADD     R4, #W_COPY
@@ -2198,7 +2198,7 @@ ea_next:
 ea_done:
         RET
 
-; The first extra record reserves the final 16 pool-B bytes. Publish its head only
+; The first extra record reserves the final 20 pool-B bytes. Publish its head only
 ; after the complete index exists. Later updates change one allocation bit.
 bitmap_include:
         EXTP    #3, #1
@@ -2215,7 +2215,7 @@ bi_clear:
         EXTP    #3, #1
         MOV     [R4], R5
         ADD     R4, #2
-        CMP     R4, #(W_BITMAP+16)
+        CMP     R4, #(W_BITMAP+20)
         JMPR    ULT, bi_clear
         MOV     R3, #W_DIR
 bi_base:
@@ -2431,8 +2431,10 @@ pm_loop:
 ; V4 limiter helpers are included here, before the header's catalogue pointer.
         INCLUDE "live_overlay_v4_limiter.inc"
 
-        INCLUDE "live_overlay_v6_feature_helpers.inc"
+        INCLUDE "live_overlay_v7_feature_helpers.inc"
         INCLUDE "live_overlay_v6_feature_stubs.inc"
+
+        INCLUDE "live_overlay_v7_word_stubs.inc"
 
 code_end:
 
@@ -2566,6 +2568,18 @@ tables:
         DW      001Ch, 132Ch, 8, 2 ; 124 launch_control
         DW      001Ch, 1334h, 8, 2 ; 125 no_lift_shift
         DW      001Ch, 133Ch, 8, 2 ; 126 rolling_anti_lag (7 fields + protected neighbor)
+
+        DW      001Eh, 03674h, 12, 4 ; 127 ip_n_sp_is__tco
+        DW      001Eh, 022E0h, 12, 4 ; 128 ip_isapwm__tco
+        DW      001Eh, 0155Eh, 12, 4 ; 129 ip_acin_n_sp_is__tco
+        DW      001Eh, 03680h, 16, 4 ; 130 ip_n_vim_tia__tia
+        DW      001Fh, 00400h, 48, 4 ; 131 ip_t_puc_deacc_1__n__maf_mmv
+        DW      001Fh, 00430h, 48, 4 ; 132 ip_t_puc_deacc_2__n__maf_mmv
+        DW      001Fh, 00460h, 48, 4 ; 133 ip_t_puc_deacc_3__n__maf_mmv
+        DW      001Fh, 00490h, 48, 4 ; 134 ip_t_puc_deacc_4__n__maf_mmv
+        DW      001Fh, 004C0h, 48, 4 ; 135 ip_t_puc_deacc_5__n__maf_mmv
+        DW      001Fh, 024DCh, 288, 4 ; 136 ip_tps_sp_pvs__pvs__n
+        DW      001Fh, 025FCh, 32, 4 ; 137 ip_tps_sp_pvs_add_low_n__n_dif__
 
 crc_table:
         DW      00000h, 00000h
@@ -3437,3 +3451,26 @@ data_end:
         DW      hk & 0FFFFh, 000Ch
         ORG     0EFE00h
         DW      (data_end - 1) & 0FFFFh, 000Ch
+
+        ORG 0C372Eh
+        CALLS 0Ch, word_map127 & 0FFFFh
+        ORG 0C36BEh
+        CALLS 0Ch, word_map128 & 0FFFFh
+        ORG 0C374Eh
+        CALLS 0Ch, word_map129 & 0FFFFh
+        ORG 0AFEF0h
+        CALLS 0Ch, word_map130 & 0FFFFh
+        ORG 0AD89Eh
+        CALLS 0Ch, word_map131 & 0FFFFh
+        ORG 0AD84Eh
+        CALLS 0Ch, word_map132 & 0FFFFh
+        ORG 0AD862h
+        CALLS 0Ch, word_map133 & 0FFFFh
+        ORG 0AD876h
+        CALLS 0Ch, word_map134 & 0FFFFh
+        ORG 0AD88Ah
+        CALLS 0Ch, word_map135 & 0FFFFh
+        ORG 09B12Ah
+        CALLS 0Ch, word_map136 & 0FFFFh
+        ORG 09B018h
+        CALLS 0Ch, word_map137 & 0FFFFh

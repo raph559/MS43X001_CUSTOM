@@ -1,16 +1,17 @@
-"""Build the separate V6 image with pinned scalar-read and paired-read hooks."""
+"""Build the separate V7 image with pinned word-table and inherited scalar hooks."""
 import json
 import re
 import subprocess
 from pathlib import Path
 import build_live_overlay as build
 from live_overlay_v4_catalog import catalogue
+from live_overlay_v7_maps import prepare
 from live_overlay_v6_features import GROUPS, READS, stubs, hooks
 
 ROOT = Path(build.REPO)
-build.SOURCE = str(ROOT / "patches/live_overlay_v6.asm")
-build.DEFAULT_OUT = str(ROOT / "build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V6.bin")
-build.DEFAULT_FIXTURE = str(ROOT / "sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v6.hex")
+build.SOURCE = str(ROOT / "patches/live_overlay_v7.asm")
+build.DEFAULT_OUT = str(ROOT / "build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V7.bin")
+build.DEFAULT_FIXTURE = str(ROOT / "sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v7.hex")
 
 
 def assemble_gently(asm):
@@ -40,6 +41,7 @@ def main():
         build.fail("Regenerate the scalar stubs from live_overlay_v6_features.py")
     if (ROOT / "patches/live_overlay_v6_feature_hooks.inc").read_text() != hooks():
         build.fail("Regenerate the scalar hooks from live_overlay_v6_features.py")
+    maps += prepare(donor)
     if any(row["bytes"] % 4 for row in maps):
         build.fail("Packed directory offsets require four-byte map sizes")
     build.HOOKS = {site: row["name"] for row in maps for site in row["sites"]}
@@ -65,18 +67,18 @@ def main():
             return
         if build.BLOCK[0] <= offset and end <= build.BLOCK[1]:
             return
-        build.fail(f"Record outside V6 write list: {offset:06X}..{end:06X}")
+        build.fail(f"Record outside V7 write list: {offset:06X}..{end:06X}")
 
     build.check_record = check_record
     build.ms43_patch.assemble = assemble_gently
     build.main()
     listing = (ROOT / "patches/live_overlay_v6.lst").read_text(errors="replace")
     symbols = {name: int(address, 16) for address, name in re.findall(r"\b([0-9A-F]{5,6})\s+:\s+([a-z_]\w*):", listing)}
-    (ROOT / "defs/live_overlay_v6_symbols.json").write_text(json.dumps(symbols, indent=2) + "\n")
-    (ROOT / "defs/live_overlay_v6_catalog.json").write_text(json.dumps(maps + GROUPS, indent=2) + "\n")
+    (ROOT / "defs/live_overlay_v7_symbols.json").write_text(json.dumps(symbols, indent=2) + "\n")
+    (ROOT / "defs/live_overlay_v7_catalog.json").write_text(json.dumps(sorted(maps + GROUPS, key=lambda r: r["id"]), indent=2) + "\n")
     reads = [dict(name=n, group=g, offset=o, operation=k, register=r, site=s, original=b)
              for n, g, o, k, r, s, b in READS]
-    (ROOT / "defs/live_overlay_v6_reads.json").write_text(json.dumps(reads, indent=2) + "\n")
+    (ROOT / "defs/live_overlay_v7_reads.json").write_text(json.dumps(reads, indent=2) + "\n")
 
 
 if __name__ == "__main__":
