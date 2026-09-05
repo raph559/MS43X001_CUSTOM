@@ -1,4 +1,4 @@
-; MS43X001 live overlay protocol 7. See docs/live-overlay-v7.md.
+; MS43X001 live overlay protocol 8. See docs/live-overlay-v8.md.
 ; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
 ; Main/AFR/exhaust: 041D00..041FBF; private request: 041FC0..041FD7; limiter: 041FD8..041FDF.
@@ -7,19 +7,19 @@
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     7               ; (AS predefines VERSION)
+OVL_VERSION     EQU     8               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; preserves the full original u8 range
-N_TABLES        EQU     138               ; the live tables (TABLES would be the label tables to AS)
+N_TABLES        EQU     139               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
-W_MAGIC         EQU     0E6B0h           ; C0D7h once the handler has initialised the window
+W_MAGIC         EQU     0E6B0h           ; C0D8h once the handler has initialised the window
 W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
 W_DIR           EQU     0E6B8h           ; base records: state, ID, offset/4, control/link, CRC32
 W_COPY          EQU     0E6E0h           ; control end, followed by idle ignition and intake cam
 W_BITMAP        EQU     0E7B0h           ; 20-byte allocation presence index, only with overflow records
 COPY_BYTES      EQU     932
 MOST_WRITE      EQU     112             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0D7h
+MAGIC           EQU     0C0D8h
 SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
 W_SESSION       EQU     0E6B4h
 W_REV           EQU     0E7C4h
@@ -1222,7 +1222,7 @@ sub_load:
         JMPA    UGT, bad_range
         CMP     R6, #704
         JMPR    UGE, ld_boundary_ok
-        CMP     R7, #704
+        CMP     R7, #700
         JMPA    UGT, bad_range
 ld_boundary_ok:
         CALLA   UC, entry_addr
@@ -1612,7 +1612,7 @@ st_entry:
         ADD     R5, #8
         CMP     R3, #(W_DIR + 8*BASE_SLOTS)
         JMPR    ULT, st_entry
-        MOV     R9, #COPY_BYTES
+        MOV     R9, #(COPY_BYTES-4)
         EXTP    #3, #1
         MOVBZ   R4, W_DIR+35
         CMP     R4, #255
@@ -2431,10 +2431,12 @@ pm_loop:
 ; V4 limiter helpers are included here, before the header's catalogue pointer.
         INCLUDE "live_overlay_v4_limiter.inc"
 
-        INCLUDE "live_overlay_v7_feature_helpers.inc"
+        INCLUDE "live_overlay_v8_feature_helpers.inc"
         INCLUDE "live_overlay_v6_feature_stubs.inc"
 
         INCLUDE "live_overlay_v7_word_stubs.inc"
+
+        INCLUDE "live_overlay_v8_pops.inc"
 
 code_end:
 
@@ -2580,6 +2582,7 @@ tables:
         DW      001Fh, 004C0h, 48, 4 ; 135 ip_t_puc_deacc_5__n__maf_mmv
         DW      001Fh, 024DCh, 288, 4 ; 136 ip_tps_sp_pvs__pvs__n
         DW      001Fh, 025FCh, 32, 4 ; 137 ip_tps_sp_pvs_add_low_n__n_dif__
+        DW      0033h, 03F80h, 8, 2 ; 138 pops
 
 crc_table:
         DW      00000h, 00000h
@@ -3138,6 +3141,11 @@ crc_zero_powers:
         DW      05E54h, 04DCDh
         DW      0BCA8h, 09B9Ah
         DW      07F11h, 0EC44h
+
+; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR, 1,600 rpm, 70.5 deg C, no throttle, 20 km/h.
+        ORG     0CFF80h
+pops_defaults:
+        DB      00h, 14h, 17h, 73h, 32h, 9Eh, 00h, 14h
 
 data_end:
 

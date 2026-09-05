@@ -1,5 +1,14 @@
 # MS43X001 live-calibration overlay - the built patch
 
+> **2026-10-26: protocol 2 is the current test candidate.** `patches/live_overlay.asm` and
+> `tools/build_live_overlay.py` now produce `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V2.bin`
+> and `sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v2.hex`. The v1 binary and fixture are retained.
+> The current wire/RAM contract is [docs/live-overlay-v2.md](../docs/live-overlay-v2.md): full-copy
+> CRC-32, version2-only activation, and baseline-relative raw-cell limits. These limits are not
+> combustion-safety validation. A known phase-sensitive quick-key-cycle case remains Incomplete and also reproduces on the
+> original v1 image; no checker or diagnostic was weakened. No ECU has been flashed. The plan6 record below describes historical v1 results.
+
+
 > **2026-10-24: the live-tuning overlay is now `patches/live_overlay.asm`** (plan 6), a new patch
 > written from the approved design (the source contract).
 > It is built by `python -I tools/build_live_overlay.py`, which assembles it with AS, refuses any
