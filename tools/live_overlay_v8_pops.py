@@ -8,13 +8,20 @@ DEFAULTS = bytes([0x00, 0x14, 0x17, 0x73, 0x32, 0x9E, 0x00, 0x14])
 GROUP = dict(id=138, name="pops", address=0xCFF80, bytes=8, flags=2, fields=8)
 
 # The sites V8 patches beyond V7, with the donor's instructions (file offset: name, bytes).
-PINNED = {0x2A7BC: ("overrun cut gate", "8A1704D08A180220")}
+PINNED = {0x2A7BC: ("overrun cut gate", "8A1704D08A180220"), 0x2D424: ("spark call", "DA0B845C"),
+          0x3D434: ("AFR branch", "8A7C0B20"), 0x1B138: ("throttle store", "F6F4A486")}
 
 HOOKS = """
         ORG     0AA7BCh
         JMPS    0Ch, pops_gate & 0FFFFh
         NOP
         NOP
+        ORG     0AD424h
+        CALLS   0Ch, pops_spark & 0FFFFh
+        ORG     0BD434h
+        JMPS    0Ch, pops_afr & 0FFFFh
+        ORG     09B138h
+        CALLS   0Ch, pops_throttle & 0FFFFh
 """
 
 
