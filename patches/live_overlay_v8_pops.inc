@@ -10,7 +10,7 @@ pops_limits:
         DB      0, 2            ; 0 switch: 0 off, 1 always on, 2 cruise control ready
         DB      1, 50           ; 1 duration, 0.1 s
         DB      0, 255          ; 2 ignition angle, 0.375 X - 23.625 deg BTDC
-        DB      100, 147        ; 3 AFR target, 0.1 X
+        DB      128, 210        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, 184 = 11.5, 210 = 10.0)
         DB      50, 219         ; 4 minimum RPM, 32 X
         DB      144, 255        ; 5 minimum coolant, 0.75 X - 48 deg C
         DB      0, 50           ; 6 throttle opening, 0.1 deg TPS
@@ -178,8 +178,10 @@ pg_stay:
         POP     0FF10h                  ; PSW
         JMPS    0Ah, 0B0F2h
 
-; ---- every 10 ms, from housekeeping (R4 is saved there): the lift is over when the engine leaves overrun; during
-; a window, count it down and keep misfire detection suppressed, as LC, NLS and RAL do. ----
+; ---- every 10 ms, from housekeeping (R3 and R4 are saved there): the lift is over when the engine leaves overrun.
+; During a window the tick, not only the gate, ends it: stock paths can keep fuelled overrun without passing the
+; gate, so the time limit and every stop are checked here too. While it runs, misfire detection stays suppressed,
+; as LC, NLS and RAL do. ----
 pops_tick:
         JB      0FD2Ch.11, pt_overrun
         JB      0FD2Ch.12, pt_overrun
@@ -190,15 +192,52 @@ pt_overrun:
         JNB     0FDF8h.3, pt_done
         MOV     R4, POPS_LEFT
         CMP     R4, #0
-        JMPR    Z, pt_misfire
+        JMPR    Z, pt_end
         SUB     R4, #1
         MOV     POPS_LEFT, R4
-pt_misfire:
+        JMPR    Z, pt_end               ; the time is up
+        MOV     [-R0], R2
+        MOV     [-R0], R5
+        CALLA   UC, pops_conditions     ; R5 = 1 while every condition holds
+        MOV     R2, R5
+        MOVBZ   R4, POPS_MIN
+        MOVBZ   R3, 807Fh
+        MOV     R5, R4
+        ADD     R5, #5
+        CMP     R3, R5
+        JMPR    ULT, pt_no_rise
+        MOV     R2, #0                  ; the engine is pushing, or the car is speeding up
+pt_no_rise:
+        CMP     R3, R4
+        JMPR    UGE, pt_kept
+        MOVB    POPS_MIN, RL3
+pt_kept:
+        CMP     R2, #0
+        JMPR    Z, pt_stop
+        MOV     R5, [R0+]
+        MOV     R2, [R0+]
         MOV     R4, #100
         MOV     0E3B0h, R4
         BSET    0FD2Ah.12
 pt_done:
         RET
+pt_stop:
+        MOV     R5, [R0+]
+        MOV     R2, [R0+]
+pt_end:
+        BCLR    0FDF8h.3
+        RET
+
+; ---- the pedal-released skip (0B:D3B2, JNB FD44.3): with the pedal released the stock code skips the AFR target
+; and full-load enrichment path. During a window it runs, so the rich target and lambda-loop-off take effect. ----
+pops_target:
+        JNB     0FD44h.3, pg_target
+        JNB     0FDF8h.3, pg_skip
+        JNB     0FD2Ch.11, pg_skip
+pg_target:
+        JMPS    0Bh, 0D3BAh
+pg_skip:
+        JMPS    0Bh, 0D476h
 
 ; ---- the spark call (0A:D424, CALLS 0Bh, 5C84h): during a window the angle is the setting, written where the
 ; per-cylinder angles are taken from (E2B5, the encoding of ip_iga_puc). Knock retard is not applied in overrun. ----
