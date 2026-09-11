@@ -21,7 +21,7 @@ the source contract.
 
 | Byte | Setting | Encoding | Limits | Default |
 |---:|---|---|---|---|
-| 0 | Switch | 0 off, 1 always on, 2 cruise control ready | 0..2 | 0 |
+| 0 | Switch | 0 off, 1 always on, 2 cruise control ready; 80h..9Fh one bit of byte 0 of the ASC (153h, `EF47`) or A/C (615h, `EF37`) frame: bit 4 the frame (1 = A/C), bit 3 the polarity (1 = on while the bit is 0), bits 0..2 the bit | 0..2, 80h..9Fh | 0 |
 | 1 | Duration | 0.1 s | 1..50 | 20 (2.0 s) |
 | 2 | Spark angle, fixed | 0.375·X − 23.625 °BTDC | 0..255 | 23 (−15.0°) |
 | 3 | AFR target | the firmware's: λ = 1.5 − X/256 (128 = 14.7, 184 = 11.5) | 128..210 | 184 (11.5) |
