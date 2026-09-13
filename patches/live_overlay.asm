@@ -1,4 +1,4 @@
-; MS43X001 live overlay protocol 8. See docs/live-overlay-v8.md.
+; MS43X001 live overlay protocol 9. See docs/live-overlay-v9.md.
 ; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
 ; Main/AFR/exhaust: 041D00..041FBF; private request: 041FC0..041FD7; limiter: 041FD8..041FDF.
@@ -7,19 +7,19 @@
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     8               ; (AS predefines VERSION)
+OVL_VERSION     EQU     9               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; preserves the full original u8 range
 N_TABLES        EQU     139               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
-W_MAGIC         EQU     0E6B0h           ; C0D8h once the handler has initialised the window
+W_MAGIC         EQU     0E6B0h           ; C0D9h once the handler has initialised the window
 W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
 W_DIR           EQU     0E6B8h           ; base records: state, ID, offset/4, control/link, CRC32
 W_COPY          EQU     0E6E0h           ; control end, followed by idle ignition and intake cam
 W_BITMAP        EQU     0E7B0h           ; 20-byte allocation presence index, only with overflow records
 COPY_BYTES      EQU     932
 MOST_WRITE      EQU     112             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0D8h
+MAGIC           EQU     0C0D9h
 SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
 W_SESSION       EQU     0E6B4h
 W_REV           EQU     0E7C4h
@@ -1017,6 +1017,7 @@ hk:
         MOV     [-R0], R3
         MOV     [-R0], R4
         CALLA   UC, pops_tick
+        CALLA   UC, watch_quiet
         EXTP    #3, #1
         MOV     R4, W_MAGIC
         CMP     R4, #MAGIC
@@ -1088,10 +1089,16 @@ h_open:
         JMPA    UC, sub_open
 h_patch:
         CMP     R5, #9
-        JMPR    NZ, h_auth
+        JMPR    NZ, h_watch
         CMP     R4, #29
         JMPA    NZ, bad_len
         JMPA    UC, sub_patch
+h_watch:
+        CMP     R5, #12
+        JMPR    NZ, h_auth
+        CMP     R4, #8
+        JMPA    NZ, bad_len
+        JMPA    UC, sub_watch
 h_auth:
         CMP     R4, #13
         JMPA    ULT, bad_len
@@ -1223,7 +1230,7 @@ sub_load:
         JMPA    UGT, bad_range
         CMP     R6, #704
         JMPR    UGE, ld_boundary_ok
-        CMP     R7, #700
+        CMP     R7, #680
         JMPA    UGT, bad_range
 ld_boundary_ok:
         CALLA   UC, entry_addr
@@ -1613,7 +1620,7 @@ st_entry:
         ADD     R5, #8
         CMP     R3, #(W_DIR + 8*BASE_SLOTS)
         JMPR    ULT, st_entry
-        MOV     R9, #(COPY_BYTES-4)
+        MOV     R9, #(COPY_BYTES-24)
         EXTP    #3, #1
         MOVBZ   R4, W_DIR+35
         CMP     R4, #255
@@ -2432,7 +2439,7 @@ pm_loop:
 ; V4 limiter helpers are included here, before the header's catalogue pointer.
         INCLUDE "live_overlay_v4_limiter.inc"
 
-        INCLUDE "live_overlay_v8_feature_helpers.inc"
+        INCLUDE "live_overlay_v9_feature_helpers.inc"
         INCLUDE "live_overlay_v6_feature_stubs.inc"
 
         INCLUDE "live_overlay_v7_word_stubs.inc"
@@ -3142,6 +3149,11 @@ crc_zero_powers:
         DW      05E54h, 04DCDh
         DW      0BCA8h, 09B9Ah
         DW      07F11h, 0EC44h
+
+        INCLUDE "live_overlay_v9_watch.inc"
+        IF      $ > 0CFF80h
+        ERROR   "the V9 code overruns the pops defaults"
+        ENDIF
 
 ; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, no throttle, 20 km/h.
         ORG     0CFF80h
