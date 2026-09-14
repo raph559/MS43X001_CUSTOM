@@ -3,10 +3,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The sites V9 patches beyond V8, with the donor's instructions (file offset: name, bytes). Grows task by task.
-PINNED = {}
+# The lookup library's readers: file offset of the entry, and the free register its first instruction loads.
+READERS = [(0x5022A, 2), (0x50262, 2), (0x50454, 2), (0x5042E, 2), (0x50168, 3), (0x5029A, 3), (0x503D2, 3), (0x5043A, 3)]
 
-HOOKS = ""
+# The sites V9 patches beyond V8, with the donor's instructions (file offset: name, bytes). Grows task by task.
+PINNED = {site: (f"reader {n} entry", f"C2F{reg}6BFB") for n, (site, reg) in enumerate(READERS)}
+
+HOOKS = "".join(f"        ORG     0{0x80000 + site:X}h\n        JMPS    0Ch, watch_rd{n} & 0FFFFh\n"
+                for n, (site, _) in enumerate(READERS))
 
 
 def _replace(text, old, new, count=1):

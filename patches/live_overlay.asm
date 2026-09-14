@@ -3508,3 +3508,19 @@ data_end:
         CALLS   0Ch, pops_throttle & 0FFFFh
         ORG     0BD3B2h
         JMPS    0Ch, pops_target & 0FFFFh
+        ORG     0D022Ah
+        JMPS    0Ch, watch_rd0 & 0FFFFh
+        ORG     0D0262h
+        JMPS    0Ch, watch_rd1 & 0FFFFh
+        ORG     0D0454h
+        JMPS    0Ch, watch_rd2 & 0FFFFh
+        ORG     0D042Eh
+        JMPS    0Ch, watch_rd3 & 0FFFFh
+        ORG     0D0168h
+        JMPS    0Ch, watch_rd4 & 0FFFFh
+        ORG     0D029Ah
+        JMPS    0Ch, watch_rd5 & 0FFFFh
+        ORG     0D03D2h
+        JMPS    0Ch, watch_rd6 & 0FFFFh
+        ORG     0D043Ah
+        JMPS    0Ch, watch_rd7 & 0FFFFh
