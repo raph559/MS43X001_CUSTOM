@@ -383,3 +383,172 @@ wr7_end:
 wr7_stock:
         MOVBZ   R3, 0FB6Bh
         JMPS    0Dh, 043Eh
+
+; ---- the descriptor lookups (Task 3): JMPS 0Ch, watch_dsN replaces the MOV DPP0 after the descriptor's unpacking. There
+; R12 (page) : R10 (offset) is the data address, R13 the row input and R14 the column input. The displaced MOV DPP0 runs
+; last; the next instructions set the flags before any test. ----
+watch_ds0:                             ; 0D:04B0, map
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd0_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd0_hit
+wd0_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd0_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd0_stock
+wd0_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd0_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R14
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #3
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd0_end:
+        POP     0FF10h                  ; PSW
+wd0_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 04B4h
+
+watch_ds1:                             ; 0D:05C8, map
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd1_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd1_hit
+wd1_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd1_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd1_stock
+wd1_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd1_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R14
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #3
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd1_end:
+        POP     0FF10h                  ; PSW
+wd1_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 05CCh
+
+watch_ds2:                             ; 0D:0776, map
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd2_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd2_hit
+wd2_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd2_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd2_stock
+wd2_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd2_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R14
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #3
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd2_end:
+        POP     0FF10h                  ; PSW
+wd2_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 077Ah
+
+watch_ds3:                             ; 0D:089E, map
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd3_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd3_hit
+wd3_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd3_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd3_stock
+wd3_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd3_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R14
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #3
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd3_end:
+        POP     0FF10h                  ; PSW
+wd3_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 08A2h
+
+watch_ds4:                             ; 0D:09BC, map
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd4_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd4_hit
+wd4_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd4_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd4_stock
+wd4_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd4_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R14
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #3
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd4_end:
+        POP     0FF10h                  ; PSW
+wd4_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 09C0h
+
