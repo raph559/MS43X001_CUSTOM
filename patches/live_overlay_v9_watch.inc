@@ -717,3 +717,200 @@ wd9_stock:
         MOV     0FE00h, R5              ; MOV DPP0, R5
         JMPS    0Dh, 06E8h
 
+watch_ds10:                             ; 0D:0AD6, curve
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd10_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd10_hit
+wd10_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd10_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd10_stock
+wd10_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd10_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R4
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #4
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd10_end:
+        POP     0FF10h                  ; PSW
+wd10_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 0ADAh
+
+watch_ds11:                             ; 0D:0DA4, curve
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd11_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd11_hit
+wd11_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd11_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd11_stock
+wd11_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd11_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R4
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #4
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd11_end:
+        POP     0FF10h                  ; PSW
+wd11_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 0DA8h
+
+watch_ds12:                             ; 0D:0E30, curve
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd12_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd12_hit
+wd12_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd12_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd12_stock
+wd12_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd12_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R4
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #4
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd12_end:
+        POP     0FF10h                  ; PSW
+wd12_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 0E34h
+
+watch_ds13:                             ; 0D:0FE2, curve
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd13_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd13_hit
+wd13_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd13_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd13_stock
+wd13_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd13_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R4
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #4
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd13_end:
+        POP     0FF10h                  ; PSW
+wd13_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 0FE6h
+
+watch_ds14:                             ; 0D:1018, curve
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd14_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd14_hit
+wd14_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd14_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd14_stock
+wd14_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd14_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R4
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #4
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd14_end:
+        POP     0FF10h                  ; PSW
+wd14_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 101Ch
+
+watch_ds15:                             ; 0D:1052, curve
+        CMP     R12, W_WPAGE
+        JMPR    NZ, wd15_copy
+        CMP     R10, W_WOFF
+        JMPR    Z, wd15_hit
+wd15_copy:
+        CMP     R12, W_APAGE
+        JMPR    NZ, wd15_stock
+        CMP     R10, W_AOFF
+        JMPR    NZ, wd15_stock
+wd15_hit:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off for the record, as at 0C:A314
+wd15_rec:
+        PUSH    R4
+        MOV     W_ROW, R13
+        MOV     R4, #0
+        MOV     W_ROWF, R4
+        MOV     W_COL, R4
+        MOV     W_COLF, R4
+        MOVB    W_COLS, RL4
+        MOVB    RL4, #4
+        MOVB    W_KIND, RL4
+        MOVB    RL4, W_COUNT
+        ADDB    RL4, #1
+        MOVB    W_COUNT, RL4
+        POP     R4
+wd15_end:
+        POP     0FF10h                  ; PSW
+wd15_stock:
+        MOV     0FE00h, R5              ; MOV DPP0, R5
+        JMPS    0Dh, 1056h
