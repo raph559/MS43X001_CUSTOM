@@ -1018,6 +1018,7 @@ hk:
         MOV     [-R0], R4
         CALLA   UC, pops_tick
         CALLA   UC, watch_quiet
+        CALLA   UC, watch_alias
         EXTP    #3, #1
         MOV     R4, W_MAGIC
         CMP     R4, #MAGIC
@@ -1211,6 +1212,7 @@ h_exit:
 
 ; ---- load i, off: the flashed table copied to the copy area at off; Loaded ----
 sub_load:
+        CALLA   UC, watch_unalias
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
@@ -1549,6 +1551,7 @@ an_done:
 
 ; ---- free i: a table not On back to Free ----
 sub_free:
+        CALLA   UC, watch_unalias
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
         JMPA    UGT, bad_table
@@ -1564,6 +1567,7 @@ sub_free:
 
 ; ---- revert: every table Free, On ones included ----
 sub_revert:
+        CALLA   UC, watch_unalias
         MOV     R3, #W_DIR
 rv_loop:
         CALLA   UC, free_entry
@@ -2053,6 +2057,7 @@ od_yes:
 
 ; ---- all_off: every On table to Ready, its copy kept; uses R3, R4 ----
 all_off:
+        CALLA   UC, watch_unalias
         MOV     [-R0], R5
         MOV     R5, #0
         MOV     R3, #W_DIR

@@ -46,12 +46,16 @@ def prepare(image):
                       "        CMP     R4, #29\n        JMPA    NZ, bad_len\n        JMPA    UC, sub_patch\n"
                       "h_watch:\n        CMP     R5, #12\n        JMPR    NZ, h_auth\n"
                       "        CMP     R4, #8\n        JMPA    NZ, bad_len\n        JMPA    UC, sub_watch\n")
-    source = _replace(source, "        CALLA   UC, pops_tick\n", "        CALLA   UC, pops_tick\n        CALLA   UC, watch_quiet\n")
+    source = _replace(source, "        CALLA   UC, pops_tick\n", "        CALLA   UC, pops_tick\n        CALLA   UC, watch_quiet\n        CALLA   UC, watch_alias\n")
     # The V9 code goes in the free flash after the CRC tables, below pops' flashed defaults.
     source = _replace(source, "\n; The flashed pops settings",
                       '\n        INCLUDE "live_overlay_v9_watch.inc"\n'
                       '        IF      $ > 0CFF80h\n        ERROR   "the V9 code overruns the pops defaults"\n        ENDIF\n'
                       "\n; The flashed pops settings")
+    # The watch drops the live copy before any allocation changes hands (RF1): Load, Free, Revert and every switch-off
+    # (AllOff, the frame after a stop or a silence, and housekeeping's own), which all run all_off.
+    for routine in ("sub_load", "sub_free", "sub_revert", "all_off"):
+        source = _replace(source, f"\n{routine}:\n", f"\n{routine}:\n        CALLA   UC, watch_unalias\n")
     source += HOOKS
 
     helpers = (ROOT / "patches/live_overlay_v8_feature_helpers.inc").read_text()
