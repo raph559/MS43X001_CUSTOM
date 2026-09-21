@@ -77,12 +77,19 @@ feature_validate:
         JMPR    ULT, fv_ok
         EXTP    R14, #1
         MOVB    RL4, [R13]
+        MOVB    RH4, RL4
+        ANDB    RH4, #0E0h
+        CMPB    RH4, #80h
+        JMPR    Z, fv_trigger
         CMPB    RL4, #2
         JMPR    UGT, fv_range
         CMP     R2, #126
         JMPR    NZ, fv_ok
         CMPB    RL4, #1
         JMPR    UGT, fv_range
+fv_trigger:
+        CMP     R2, #126
+        JMPR    NZ, fv_ok
         EXTP    R14, #1
         MOVB    RL4, [R13+7]
         EXTP    #1Ch, #1
