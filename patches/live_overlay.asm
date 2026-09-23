@@ -48,7 +48,7 @@ REP_DATA        EQU     0F750h
         ORG     0CB544h
 
 header: DB      "LTOV"                  ; the signature the app reads with DS2 command 06 at 0C:B544
-        DW      OVL_VERSION
+        DW      OVL_VERSION + 0500h     ; V8.5: the high byte is the minor
         DW      code_start & 0FFFFh
         DW      code_end & 0FFFFh
         DW      data_end & 0FFFFh
@@ -2437,7 +2437,7 @@ pm_loop:
 
         INCLUDE "live_overlay_v7_word_stubs.inc"
 
-        INCLUDE "live_overlay_v8_pops.inc"
+        INCLUDE "live_overlay_v85_pops.inc"
 
 code_end:
 
