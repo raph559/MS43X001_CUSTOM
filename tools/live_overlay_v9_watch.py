@@ -77,6 +77,21 @@ def prepare(image):
                           "        AND     R3, #7\n        SHR     R2, R3\n        AND     R2, #1\n        JNB     R4.3, pc_can_level\n"
                           "        XOR     R2, #1\npc_can_level:\n        CMP     R2, #0\n",
                     "pc_can:\n        CALLA   UC, can_bit_matches     ; shared with the LC/NLS/RAL triggers\n        CMP     R2, #0\n")
+    # The pops throttle opening goes up to 20.0 deg TPS (owner, 2026-10-29: "oui 20"; V8's 5.0 gave only crackle). The
+    # validators and pops_setting read the limit from pops_limits. The 86A4 units are computed, X * 54.625 by shifts
+    # (X * 2731 / 50 within 2 units), since a 201-word table does not fit; no MD register is used (V8 Task 3).
+    pops = _replace(pops, "        DB      0, 50           ; 6 throttle opening, 0.1 deg TPS\n",
+                          "        DB      0, 200          ; 6 throttle opening, 0.1 deg TPS (V9: up to 20.0)\n")
+    pops = _replace(pops, "        SHL     R4, #1\n        ADD     R4, #(pops_throttle_add & 0FFFFh)\n        EXTS    #0Ch, #1\n"
+                          "        MOV     R4, [R4]\n",
+                    "        MOV     [-R0], R5\n        MOV     R5, R4\n        SHL     R5, #5\n        MOV     R4, R5               ; 32 X\n"
+                    "        SHR     R5, #1\n        ADD     R4, R5               ; + 16 X\n        SHR     R5, #2\n"
+                    "        ADD     R4, R5               ; + 4 X\n        SHR     R5, #1\n        ADD     R4, R5               ; + 2 X\n"
+                    "        SHR     R5, #2\n        ADD     R4, R5               ; + X / 2\n        SHR     R5, #2\n"
+                    "        ADD     R4, R5               ; + X / 8: 54.625 X, 10925 at 20.0 deg TPS\n        MOV     R5, [R0+]\n")
+    start = pops.index("; 86A4 units added for each 0.1 deg TPS of opening")
+    end = pops.index("\n", pops.index("pops_throttle_add:\n        DW") + len("pops_throttle_add:\n")) + 1
+    pops = pops[:start] + pops[end:]
 
     helpers = (ROOT / "patches/live_overlay_v8_feature_helpers.inc").read_text()
     # A trigger (80h..9Fh) is a valid activation byte for LC, NLS and RAL; RAL keeps 0..1 for the rest, and its neighbour rule.
