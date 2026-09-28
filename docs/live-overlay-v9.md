@@ -87,7 +87,16 @@ switches it on (CCM6 = 0655h) on another, so V9 writes no SFR.
   `58h` and copies the record big-endian to `F799..F7A3` with `IEN` held off. The reply is 88 bytes:
   `12 58 A0`, the stock payload unchanged, `KIND COUNT ROWh ROWl ROWFh ROWFl COLh COLl COLFh COLFl COLS`,
   the checksum. It needs no session and stamps the keep-alive.
+  So logging alone keeps live settings on. When the app's live-tuning session stops on an error, the app
+  logs with `0B B0` until a new session starts (`WatchingPayloadSource.Quiet`), and the overlay puts its live
+  settings back to flash 3 s later, as on V8.
 - `0B B0` stays byte for byte as it was.
+- **DPP2.** The hooks reach `W_*` through DPP2, not `EXTP #10h`, to keep the watching path short. That holds
+  while DPP2 is 10h at every hooked lookup. The stock code changes it only in its flash-to-RAM copy at
+  `0E:2FAE` (behind the `FD52`/`FD6E` request flags), which never ran on the drives. `WatchDppTests` checks
+  DPP2 = 10h at every pass through the 24 sites on six drives, cold start to full load, with and without a
+  watch (about 3.9 million passes). If that copy ran with a watch set, the worst case is a missed or wrong
+  record.
 
 **The watch ends** after 3 s without a `0x6D` frame (`watch_quiet`, in housekeeping), but not at engine-off,
 unlike V8's `off_due`: watching changes nothing the engine reads, and reads at key-on must stay visible.
