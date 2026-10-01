@@ -1,4 +1,4 @@
-"""Build the separate V9 image: V8 plus the watched map and its pinned hooks."""
+"""Build the separate V10 image: V9 plus pops' throttle stabs and the downshift blip (no new hook site)."""
 import json
 import re
 import subprocess
@@ -8,12 +8,13 @@ from live_overlay_v4_catalog import catalogue
 from live_overlay_v7_maps import catalogue as word_catalogue
 import live_overlay_v8_pops as pops
 import live_overlay_v9_watch as watch
+import live_overlay_v10 as v10
 from live_overlay_v6_features import GROUPS, READS, stubs, hooks
 
 ROOT = Path(build.REPO)
-build.SOURCE = str(ROOT / "patches/live_overlay_v9.asm")
-build.DEFAULT_OUT = str(ROOT / "build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V9.bin")
-build.DEFAULT_FIXTURE = str(ROOT / "sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v9.hex")
+build.SOURCE = str(ROOT / "patches/live_overlay_v10.asm")
+build.DEFAULT_OUT = str(ROOT / "build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10.bin")
+build.DEFAULT_FIXTURE = str(ROOT / "sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v10.hex")
 
 
 def assemble_gently(asm):
@@ -45,6 +46,7 @@ def main():
         build.fail("Regenerate the scalar hooks from live_overlay_v6_features.py")
     maps += word_catalogue(donor)
     watch.prepare(donor)
+    v10.prepare(donor)
     group = pops.GROUP
     if any(row["bytes"] % 4 for row in maps):
         build.fail("Packed directory offsets require four-byte map sizes")
@@ -56,6 +58,7 @@ def main():
     extra.update({site: (name, expected) for name, _, _, _, _, site, expected in READS})
     extra.update(pops.PINNED)
     extra.update(watch.PINNED)
+    extra.update(v10.PINNED)
     for site, (name, expected) in extra.items():
         original = bytes.fromhex(expected)
         if donor[site:site+len(original)] != original:
@@ -73,18 +76,19 @@ def main():
             return
         if build.BLOCK[0] <= offset and end <= build.BLOCK[1]:
             return
-        build.fail(f"Record outside V9 write list: {offset:06X}..{end:06X}")
+        build.fail(f"Record outside V10 write list: {offset:06X}..{end:06X}")
 
     build.check_record = check_record
     build.ms43_patch.assemble = assemble_gently
     build.main()
-    listing = (ROOT / "patches/live_overlay_v9.lst").read_text(errors="replace")
+    listing = (ROOT / "patches/live_overlay_v10.lst").read_text(errors="replace")
     symbols = {name: int(address, 16) for address, name in re.findall(r"\b([0-9A-F]{5,6})\s+:\s+([a-z_]\w*):", listing)}
-    (ROOT / "defs/live_overlay_v9_symbols.json").write_text(json.dumps(symbols, indent=2) + "\n")
-    (ROOT / "defs/live_overlay_v9_catalog.json").write_text(json.dumps(sorted(maps + GROUPS + [group], key=lambda r: r["id"]), indent=2) + "\n")
+    (ROOT / "defs/live_overlay_v10_symbols.json").write_text(json.dumps(symbols, indent=2) + "\n")
+    rows = maps + GROUPS + [group] + v10.GROUPS
+    (ROOT / "defs/live_overlay_v10_catalog.json").write_text(json.dumps(sorted(rows, key=lambda r: r["id"]), indent=2) + "\n")
     reads = [dict(name=n, group=g, offset=o, operation=k, register=r, site=s, original=b)
              for n, g, o, k, r, s, b in READS]
-    (ROOT / "defs/live_overlay_v9_reads.json").write_text(json.dumps(reads, indent=2) + "\n")
+    (ROOT / "defs/live_overlay_v10_reads.json").write_text(json.dumps(reads, indent=2) + "\n")
 
 
 if __name__ == "__main__":

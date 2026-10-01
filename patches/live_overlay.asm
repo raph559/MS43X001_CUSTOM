@@ -1,4 +1,4 @@
-; MS43X001 live overlay protocol 9. See docs/live-overlay-v9.md.
+; MS43X001 live overlay protocol 10. See docs/live-overlay-v10.md.
 ; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
 ; Main/AFR/exhaust: 041D00..041FBF; private request: 041FC0..041FD7; limiter: 041FD8..041FDF.
@@ -7,19 +7,19 @@
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     9               ; (AS predefines VERSION)
+OVL_VERSION     EQU     10              ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; preserves the full original u8 range
-N_TABLES        EQU     139               ; the live tables (TABLES would be the label tables to AS)
+N_TABLES        EQU     143               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- control in XRAM, reached through EXTP #3 ----
-W_MAGIC         EQU     0E6B0h           ; C0D9h once the handler has initialised the window
+W_MAGIC         EQU     0E6B0h           ; C0DAh once the handler has initialised the window
 W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
 W_DIR           EQU     0E6B8h           ; base records: state, ID, offset/4, control/link, CRC32
 W_COPY          EQU     0E6E0h           ; control end, followed by idle ignition and intake cam
 W_BITMAP        EQU     0E7B0h           ; 20-byte allocation presence index, only with overflow records
 COPY_BYTES      EQU     932
 MOST_WRITE      EQU     112             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0D9h
+MAGIC           EQU     0C0DAh
 SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
 W_SESSION       EQU     0E6B4h
 W_REV           EQU     0E7C4h
@@ -1238,7 +1238,7 @@ sub_load:
         JMPA    UGT, bad_range
         CMP     R6, #704
         JMPR    UGE, ld_boundary_ok
-        CMP     R7, #680
+        CMP     R7, #668
         JMPA    UGT, bad_range
 ld_boundary_ok:
         CALLA   UC, entry_addr
@@ -1630,7 +1630,7 @@ st_entry:
         ADD     R5, #8
         CMP     R3, #(W_DIR + 8*BASE_SLOTS)
         JMPR    ULT, st_entry
-        MOV     R9, #(COPY_BYTES-24)
+        MOV     R9, #(COPY_BYTES-36)
         EXTP    #3, #1
         MOVBZ   R4, W_DIR+35
         CMP     R4, #255
@@ -2450,12 +2450,12 @@ pm_loop:
 ; V4 limiter helpers are included here, before the header's catalogue pointer.
         INCLUDE "live_overlay_v4_limiter.inc"
 
-        INCLUDE "live_overlay_v9_feature_helpers.inc"
+        INCLUDE "live_overlay_v10_feature_helpers.inc"
         INCLUDE "live_overlay_v9_feature_stubs.inc"
 
         INCLUDE "live_overlay_v7_word_stubs.inc"
 
-        INCLUDE "live_overlay_v9_pops.inc"
+        INCLUDE "live_overlay_v10_pops.inc"
 
 code_end:
 
@@ -2602,6 +2602,10 @@ tables:
         DW      001Fh, 024DCh, 288, 4 ; 136 ip_tps_sp_pvs__pvs__n
         DW      001Fh, 025FCh, 32, 4 ; 137 ip_tps_sp_pvs_add_low_n__n_dif__
         DW      0033h, 03F80h, 8, 2 ; 138 pops
+        DW      0033h, 03F88h, 8, 2 ; 139 pops stabs
+        DW      0033h, 03F90h, 8, 2 ; 140 downshift blip
+        DW      0033h, 03F98h, 8, 2 ; 141 downshift blip: gears and tap
+        DW      0033h, 03FA0h, 8, 2 ; 142 downshift blip: gear ratios
 
 crc_table:
         DW      00000h, 00000h
@@ -3163,14 +3167,27 @@ crc_zero_powers:
 
         INCLUDE "live_overlay_v9_watch.inc"
         INCLUDE "live_overlay_v9_triggers.inc"
+        INCLUDE "live_overlay_v10_groups.inc"
         IF      $ > 0CFF80h
-        ERROR   "the V9 code overruns the pops defaults"
+        ERROR   "the V10 code overruns the pops defaults"
         ENDIF
 
-; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, no throttle, 20 km/h.
+; The flashed pops settings: off, 4.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, 10.0 deg TPS, 20 km/h.
         ORG     0CFF80h
 pops_defaults:
-        DB      000h, 014h, 017h, 0B8h, 032h, 09Eh, 000h, 014h
+        DB      000h, 028h, 017h, 0B8h, 032h, 09Eh, 064h, 014h
+; 139 pops stabs: a 2.0 s load, +15.0 deg TPS stabs of 150 ms, 250 ms gaps.
+stab_defaults:
+        DB      014h, 04Bh, 00Fh, 019h, 000h, 000h, 000h, 000h
+; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 15.0 and 5.0 deg TPS, +10.1 deg.
+blip_defaults:
+        DB      000h, 003h, 01Eh, 0BBh, 00Fh, 04Bh, 019h, 05Ah
+; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s.
+gears_defaults:
+        DB      001h, 001h, 001h, 000h, 015h, 028h, 000h, 000h
+; 142 its ratios, 0.5 rpm per km/h: 1st 113.0, 2nd 67.0, 3rd 44.5, 4th 33.5.
+ratio_defaults:
+        DB      0E2h, 086h, 059h, 043h, 000h, 000h, 000h, 000h
 
 data_end:
 
