@@ -181,6 +181,7 @@ pg_request:
         ADD     R4, R3
         ADD     R4, R3
         MOV     POPS_LEFT, R4
+        CALLA   UC, stab_start
         MOVB    RL4, 807Fh
         MOVB    POPS_MIN, RL4
         JMPR    UC, pg_stay
@@ -202,6 +203,7 @@ pg_running:
         JMPR    UC, pg_stay
 pg_end:
         BCLR    0FDF8h.3
+        BCLR    POPS_STAB
 pg_cut:
         MOV     R5, [R0+]
         MOV     R4, [R0+]
@@ -225,6 +227,7 @@ pops_tick:
         JB      0FD2Ch.11, pt_overrun
         JB      0FD2Ch.12, pt_overrun
         BCLR    0FDF8h.3
+        BCLR    POPS_STAB
         BCLR    0FDF8h.4
         RET
 pt_overrun:
@@ -253,6 +256,7 @@ pt_no_rise:
 pt_kept:
         CMP     R2, #0
         JMPR    Z, pt_stop
+        CALLA   UC, stab_tick
         MOV     R5, [R0+]
         MOV     R2, [R0+]
         MOV     R4, #100
@@ -265,6 +269,7 @@ pt_stop:
         MOV     R2, [R0+]
 pt_end:
         BCLR    0FDF8h.3
+        BCLR    POPS_STAB
         RET
 
 ; ---- the pedal-released skip (0B:D3B2, JNB FD44.3): with the pedal released the stock code skips the AFR target
@@ -349,6 +354,19 @@ pops_throttle:
         JMPR    NC, pth_sum
         MOV     R4, #0FFFFh
 pth_sum:
+        JNB     POPS_STAB, pth_done
+        JB      GUARD, pth_done
+        MOV     [-R0], R4               ; the stock setpoint plus the opening
+        MOV     R2, #139
+        MOV     R3, #1
+        CALLA   UC, v10_setting         ; the stab size
+        CALLA   UC, opening_units
+        MOV     R2, R4
+        MOV     R4, [R0+]
+        ADD     R4, R2
+        JMPR    NC, pth_done
+        MOV     R4, #0FFFFh
+pth_done:
         MOV     R3, [R0+]
         MOV     R2, [R0+]
         POP     0FF10h                  ; PSW

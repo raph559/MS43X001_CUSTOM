@@ -3168,6 +3168,7 @@ crc_zero_powers:
         INCLUDE "live_overlay_v9_watch.inc"
         INCLUDE "live_overlay_v9_triggers.inc"
         INCLUDE "live_overlay_v10_groups.inc"
+        INCLUDE "live_overlay_v10_blip.inc"
         IF      $ > 0CFF80h
         ERROR   "the V10 code overruns the pops defaults"
         ENDIF

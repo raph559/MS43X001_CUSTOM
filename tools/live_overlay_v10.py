@@ -112,6 +112,28 @@ def prepare(image):
                               "; R2 = group ID (124..126, 138..142), R3 = byte within its 8-byte span.")
 
     pops = V10_STATE + (ROOT / "patches/live_overlay_v9_pops.inc").read_text()
+    # Task 2, the stabs: a window's start resets the phases; the tick runs them while every condition holds; every way a
+    # window ends clears POPS_STAB; the throttle store adds the stab's extra while POPS_STAB is set and GUARD is clear.
+    source = _replace(source, '        INCLUDE "live_overlay_v10_groups.inc"\n',
+                      '        INCLUDE "live_overlay_v10_groups.inc"\n        INCLUDE "live_overlay_v10_blip.inc"\n')
+    pops = _replace(pops, "        MOV     POPS_LEFT, R4\n        MOVB    RL4, 807Fh\n",
+                    "        MOV     POPS_LEFT, R4\n        CALLA   UC, stab_start\n        MOVB    RL4, 807Fh\n")
+    pops = _replace(pops, "pg_end:\n        BCLR    0FDF8h.3\n", "pg_end:\n        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n")
+    pops = _replace(pops, "pops_tick:\n        JB      0FD2Ch.11, pt_overrun\n        JB      0FD2Ch.12, pt_overrun\n"
+                          "        BCLR    0FDF8h.3\n",
+                    "pops_tick:\n        JB      0FD2Ch.11, pt_overrun\n        JB      0FD2Ch.12, pt_overrun\n"
+                    "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n")
+    pops = _replace(pops, "pt_kept:\n        CMP     R2, #0\n        JMPR    Z, pt_stop\n",
+                    "pt_kept:\n        CMP     R2, #0\n        JMPR    Z, pt_stop\n        CALLA   UC, stab_tick\n")
+    pops = _replace(pops, "pt_end:\n        BCLR    0FDF8h.3\n        RET\n",
+                    "pt_end:\n        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n        RET\n")
+    pops = _replace(pops, "pth_sum:\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n",
+                    "pth_sum:\n        JNB     POPS_STAB, pth_done\n        JB      GUARD, pth_done\n"
+                    "        MOV     [-R0], R4               ; the stock setpoint plus the opening\n"
+                    "        MOV     R2, #139\n        MOV     R3, #1\n        CALLA   UC, v10_setting         ; the stab size\n"
+                    "        CALLA   UC, opening_units\n        MOV     R2, R4\n        MOV     R4, [R0+]\n        ADD     R4, R2\n"
+                    "        JMPR    NC, pth_done\n        MOV     R4, #0FFFFh\n"
+                    "pth_done:\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n")
 
     (ROOT / "patches/live_overlay_v10.asm").write_text(source)
     (ROOT / "patches/live_overlay_v10_feature_helpers.inc").write_text(helpers)
