@@ -134,6 +134,22 @@ def prepare(image):
                     "        CALLA   UC, opening_units\n        MOV     R2, R4\n        MOV     R4, [R0+]\n        ADD     R4, R2\n"
                     "        JMPR    NC, pth_done\n        MOV     R4, #0FFFFh\n"
                     "pth_done:\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n")
+    # Task 3, the brake: either switch (FD2E.3 the brake light switch, FD2E.4 the brake test switch) blocks a window and
+    # ends a running one, and braking in overrun uses up the lift (FDF8.4). Out of overrun the lift is re-armed only with
+    # the clutch released, so a tap with the clutch in does not bring the pops back (owner, 2026-11-05).
+    pops = _replace(pops, "        JB      0FD2Eh.6, pc_done       ; clutch pressed: the clutch belongs to NLS\n",
+                    "        JB      0FD2Eh.6, pc_done       ; clutch pressed: the clutch belongs to NLS\n"
+                    "        JB      0FD2Eh.3, pc_done       ; braking: either brake switch\n"
+                    "        JB      0FD2Eh.4, pc_done\n")
+    pops = _replace(pops, "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n        BCLR    0FDF8h.4\n        RET\n"
+                          "pt_overrun:\n        JNB     0FDF8h.3, pt_done\n",
+                    "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n"
+                    "        JB      0FD2Eh.6, pt_rearm_done ; the clutch in: not a press that re-arms the pops\n"
+                    "        BCLR    0FDF8h.4\npt_rearm_done:\n        RET\n"
+                    "pt_overrun:\n        JB      0FD2Eh.3, pt_brake\n        JNB     0FD2Eh.4, pt_no_brake\n"
+                    "pt_brake:\n        BSET    0FDF8h.4                ; braking uses up this lift's pops\n"
+                    "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n        RET\n"
+                    "pt_no_brake:\n        JNB     0FDF8h.3, pt_done\n")
 
     (ROOT / "patches/live_overlay_v10.asm").write_text(source)
     (ROOT / "patches/live_overlay_v10_feature_helpers.inc").write_text(helpers)
