@@ -369,3 +369,14 @@ bt_done:
         MOV     R5, [R0+]
         MOV     R2, [R0+]
         RET
+
+; ---- the in-cut re-entry check (0A:AAA0, BCMP FD9Ah.11, FD48h.2): in a running overrun cut with the pedal released, the
+; stock handler refuels only below the re-entry rpm (81AB). A blip needs the fuel now, so while one runs this check
+; takes the stock re-entry at 0A:AABA (fuelled overrun, or idle below 88E0). Otherwise the displaced instruction runs
+; and the stock code continues with its flags. Every register is as it came. ----
+blip_reentry:
+        JNB     BLIP_ON, br_stock
+        JMPS    0Ah, 0AABAh
+br_stock:
+        BCMP    0FD9Ah.11, 0FD48h.2
+        JMPS    0Ah, 0AAA4h
