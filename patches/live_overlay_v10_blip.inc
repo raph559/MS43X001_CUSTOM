@@ -76,6 +76,40 @@ st_off:
         BCLR    POPS_STAB
         RET
 
+; From pops_tick's rise check, V10.1: R5 = the lowest engine speed in the window (807F units). Return R5 = the engine
+; speed that ends the window: 5 above the lowest (160 rpm, V8's rule) during the load, or 139 byte 4 above it once the
+; stabs have begun (POPS_T past 10 x the load time, with a stab size above 0); on the car a stab adds about 200 rpm.
+; Preserves every other register; changes PSW.
+rise_allowance:
+        MOV     [-R0], R2
+        MOV     [-R0], R3
+        MOV     [-R0], R4
+        MOV     R2, #139
+        MOV     R3, #1
+        CALLA   UC, v10_setting         ; the stab size
+        CMP     R4, #0
+        JMPR    Z, ra_load              ; no stabs: V8's rule for the whole window
+        MOV     R3, #0
+        CALLA   UC, v10_setting         ; the load time, 0.1 s
+        MOV     R3, R4
+        SHL     R3, #3
+        ADD     R3, R4
+        ADD     R3, R4                  ; 10 X ticks
+        MOV     R4, POPS_T
+        CMP     R4, R3
+        JMPR    ULE, ra_load            ; still loading
+        MOV     R3, #4
+        CALLA   UC, v10_setting         ; the rise allowed once stabbing, 32 rpm (5..31)
+        ADD     R5, R4
+        JMPR    UC, ra_done
+ra_load:
+        ADD     R5, #5
+ra_done:
+        MOV     R4, [R0+]
+        MOV     R3, [R0+]
+        MOV     R2, [R0+]
+        RET
+
 ; ---- the torque guard, every 10 ms from housekeeping right after pops_tick. While a pops window or a blip runs,
 ; GUARD is set when the monitoring's torque estimate (8013) is more than 10 above the permitted torque (86AD): both
 ; bytes are 2 Nm, so 20 Nm short of the monitoring's fault threshold, ip_tqi_dif_max_mon = 40 Nm (0D:2534). The guard
@@ -149,6 +183,49 @@ bg_next:
         JMPR    UGT, bg_capped
         MOV     R4, R2
 bg_capped:
+        RET
+
+; V10.1, while a blip rises: R5 = the engine speed now (807F units). Updates BLIP_RATE, the rise per 10 ms tick x 16,
+; filtered (rate - rate/4 + 4 x the rise since the last tick, a fall counting as none, at most 255), and BLIP_PREV.
+; Return R4 = the rise expected within the blip lead (141 byte 6, 10 ms): rate x lead / 16, in 807F units, 0 with no
+; lead. Preserves R2, R3 and R5..R15; changes PSW.
+blip_lead:
+        MOV     [-R0], R2
+        MOV     [-R0], R3
+        MOVBZ   R4, BLIP_PREV
+        MOVB    BLIP_PREV, RL5
+        MOV     R3, R5
+        SUB     R3, R4                  ; the rise since the last tick
+        JMPR    UGE, bk_rise
+        MOV     R3, #0                  ; a fall counts as none
+bk_rise:
+        SHL     R3, #2
+        MOVBZ   R2, BLIP_RATE
+        MOV     R4, R2
+        SHR     R4, #2
+        SUB     R2, R4
+        ADD     R2, R3                  ; rate - rate/4 + 4 x the rise
+        CMP     R2, #255
+        JMPR    ULE, bk_store
+        MOV     R2, #255
+bk_store:
+        MOVB    BLIP_RATE, RL2
+        MOV     R2, #141
+        MOV     R3, #6
+        CALLA   UC, v10_setting         ; the lead, 10 ms (0..30)
+        MOVBZ   R2, BLIP_RATE
+        MOV     R3, #0
+bk_mul:
+        JNB     R4.0, bk_next           ; rate x lead by shifts (no MD register, as pops)
+        ADD     R3, R2
+bk_next:
+        SHL     R2, #1
+        SHR     R4, #1
+        JMPR    NZ, bk_mul
+        SHR     R3, #4
+        MOV     R4, R3
+        MOV     R3, [R0+]
+        MOV     R2, [R0+]
         RET
 
 ; Ends a running blip: the next throttle store has no blip addition. Changes R4.
@@ -271,9 +348,6 @@ bt_tap_ok:
         CMP     R6, #0
         JMPA    Z, bt_done
 bt_go:
-        BSET    BLIP_ON
-        BSET    BLIP_USED
-        BSET    0FDF8h.4                ; a blip uses up this lift's pops
         BCLR    BLIP_HOLD
         MOV     R3, #4
         CALLA   UC, v10_setting         ; the maximum time, 0.1 s (R2 = 140)
@@ -286,6 +360,13 @@ bt_go:
         CALLA   UC, v10_setting         ; the blip opening
         CALLA   UC, opening_units
         MOV     BLIP_ADD, R4
+        MOVB    RL4, 807Fh              ; the rise rate starts from here
+        MOVB    BLIP_PREV, RL4
+        MOV     R4, #0
+        MOVB    BLIP_RATE, RL4
+        BSET    BLIP_USED
+        BSET    0FDF8h.4                ; a blip uses up this lift's pops
+        BSET    BLIP_ON                 ; last: the throttle store sees a blip only with its values in place
         JMPA    UC, bt_done
 bt_running:                             ; 3. a blip runs: the stops first
         MOV     R2, #141
@@ -318,16 +399,22 @@ bt_running:                             ; 3. a blip runs: the stops first
         MOV     R4, 0FDF8h
         AND     R4, #7
         JMPA    NZ, bt_stop             ; LC, NLS or RAL engaged
-        MOVBZ   R5, 81AEh
+        MOVBZ   R5, 81AEh               ; the gear just left indexes 142: outside 2..5 the blip stops
+        CMP     R5, #2
+        JMPA    ULT, bt_stop
+        CMP     R5, #5
+        JMPA    UGT, bt_stop
         CALLA   UC, blip_target         ; the target follows the road speed
         MOVB    BLIP_TGT, RL4
         MOV     R6, R4                  ; R6 = the target, R5 = the engine speed (807F units)
         MOVBZ   R5, 807Fh
         JB      BLIP_HOLD, bt_hold
+        CALLA   UC, blip_lead           ; R4 = the rise expected within the lead (V10.1)
         MOV     R3, R5
         ADD     R3, #6
+        ADD     R3, R4
         CMP     R3, R6
-        JMPA    UGE, bt_hold_begins
+        JMPA    UGE, bt_hold_begins     ; within 192 rpm of the target by the end of the lead
         MOV     R2, #140                ; the rise: the blip opening, read each tick so a live edit applies
         MOV     R3, #5
         CALLA   UC, v10_setting
@@ -372,10 +459,13 @@ bt_done:
 
 ; ---- the in-cut re-entry check (0A:AAA0, BCMP FD9Ah.11, FD48h.2): in a running overrun cut with the pedal released, the
 ; stock handler refuels only below the re-entry rpm (81AB). A blip needs the fuel now, so while one runs this check
-; takes the stock re-entry at 0A:AABA (fuelled overrun, or idle below 88E0). Otherwise the displaced instruction runs
-; and the stock code continues with its flags. Every register is as it came. ----
+; takes the stock re-entry at 0A:AABA (fuelled overrun, or idle below 88E0), after the stock BCMP and BMOV (V10.1), so
+; FD9A.11 and the flags are what a stock pass leaves at 0A:AAA8. Otherwise the displaced instruction runs and the stock
+; code continues with its flags. Every register is as it came. ----
 blip_reentry:
         JNB     BLIP_ON, br_stock
+        BCMP    0FD9Ah.11, 0FD48h.2
+        BMOV    0FD9Ah.11, 0FF10h.2     ; PSW.2, as the stock code at 0A:AAA4
         JMPS    0Ah, 0AABAh
 br_stock:
         BCMP    0FD9Ah.11, 0FD48h.2

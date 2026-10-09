@@ -9,8 +9,8 @@ v10_limits:
         DB      0, 150          ; 139/1 stab size on top of the opening, 0.2 deg TPS
         DB      5, 30           ; 139/2 stab length, 10 ms
         DB      10, 100         ; 139/3 gap, 10 ms
-        DB      0, 0            ; 139/4..7 reserved
-        DB      0, 0
+        DB      5, 31           ; 139/4 rise allowed once stabbing, 32 rpm (V10.1; 5 is V8's 160 rpm)
+        DB      0, 0            ; 139/5..7 reserved
         DB      0, 0
         DB      0, 0
         DB      0, 2            ; 140/0 switch: 0 off, 1 always on, 2 cruise ready; or 80h..9Fh, a CAN bit
@@ -27,8 +27,8 @@ v10_limits:
         DB      0, 1            ; 141/3 2nd to 1st, on a tap only
         DB      11, 85          ; 141/4 tap threshold, E0FF units (0.46875 deg PVS)
         DB      10, 60          ; 141/5 tap length, 10 ms
-        DB      0, 0            ; 141/6..7 reserved
-        DB      0, 0
+        DB      0, 30           ; 141/6 blip lead, 10 ms (V10.1; 0 ends the rise on the rpm itself, as V10)
+        DB      0, 0            ; 141/7 reserved
         DB      180, 255        ; 142/0 rpm per km/h of 1st, 0.5 per step
         DB      100, 160        ; 142/1 of 2nd
         DB      70, 110         ; 142/2 of 3rd
