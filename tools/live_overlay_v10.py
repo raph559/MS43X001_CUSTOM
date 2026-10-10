@@ -18,9 +18,9 @@ GEARS_DEFAULTS = bytes([0x01, 0x01, 0x01, 0x00, 0x15, 0x28, 0x0F, 0])
 RATIO_DEFAULTS = bytes([0xE2, 0x86, 0x59, 0x43, 0, 0, 0, 0])
 DEFAULTS = POPS_DEFAULTS + STAB_DEFAULTS + BLIP_DEFAULTS + GEARS_DEFAULTS + RATIO_DEFAULTS
 
-GROUPS = [dict(id=139, name="pops_stabs", address=0xCFF88, bytes=8, flags=2, fields=4),
+GROUPS = [dict(id=139, name="pops_stabs", address=0xCFF88, bytes=8, flags=2, fields=5),
           dict(id=140, name="blip", address=0xCFF90, bytes=8, flags=2, fields=8),
-          dict(id=141, name="blip_gears", address=0xCFF98, bytes=8, flags=2, fields=6),
+          dict(id=141, name="blip_gears", address=0xCFF98, bytes=8, flags=2, fields=7),
           dict(id=142, name="blip_ratios", address=0xCFFA0, bytes=8, flags=2, fields=4)]
 
 # V10 reuses V8's gate, spark and throttle hooks and housekeeping, and adds one site (Task 7's finding): the in-cut handler
