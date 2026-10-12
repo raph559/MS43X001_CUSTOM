@@ -201,9 +201,9 @@ pg_running:
         JMPR    Z, pg_end
         MOVBZ   R4, POPS_MIN
         MOVBZ   R3, 807Fh
-        MOV     R2, R4
-        ADD     R2, #5
-        CMP     R3, R2
+        MOV     R5, R4
+        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing
+        CMP     R3, R5
         JMPR    UGE, pg_end             ; the engine is pushing, or the car is speeding up
         CMP     R3, R4
         JMPR    UGE, pg_stay
