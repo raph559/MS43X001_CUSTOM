@@ -30,6 +30,7 @@ stab_start:
         MOV     R4, #0
         MOV     POPS_T, R4
         MOVB    POPS_PH, RL4
+        MOVB    POPS_STABS, RL4         ; V10.1: no stab yet in this window
         BCLR    POPS_STAB
         MOV     R4, [R0+]
         RET
@@ -65,6 +66,13 @@ st_counted:
         MOV     R3, #3                  ; a gap follows a stab
 st_toggle:
         BMOVN   POPS_STAB, POPS_STAB
+        JNB     POPS_STAB, st_length
+        MOVB    RL4, POPS_STABS         ; V10.1: a stab begins; the log reads the count, up to 255
+        CMPB    RL4, #255
+        JMPR    Z, st_length
+        ADDB    RL4, #1
+        MOVB    POPS_STABS, RL4
+st_length:
         CALLA   UC, v10_setting         ; the new phase's length, 10 ms
         MOVB    POPS_PH, RL4
 st_count:

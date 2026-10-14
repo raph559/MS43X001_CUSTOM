@@ -46,6 +46,7 @@ BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (3
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
 BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
 BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
+POPS_STABS      EQU     09FBFh          ; byte: the stabs begun in this pops window, up to 255, for the log (V10.1)
 POPS_STAB       BIT     0FDF8h.7        ; a stab is on
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
 BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
@@ -154,6 +155,8 @@ def prepare(image):
     pops = _replace(pops, "        MOV     R2, R4\n        ADD     R2, #5\n        CMP     R3, R2\n        JMPR    UGE, pg_end",
                     "        MOV     R5, R4\n        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing\n"
                     "        CMP     R3, R5\n        JMPR    UGE, pg_end")
+    # V10.1, the log: pops' spare byte after POPS_MIN counts the stabs begun in the window (stab_start, stab_tick).
+    pops = _replace(pops, "(09FBFh reserved)", "(09FBFh: POPS_STABS, V10.1)")
     pops = _replace(pops, "        MOV     POPS_LEFT, R4\n        MOVB    RL4, 807Fh\n",
                     "        MOV     POPS_LEFT, R4\n        CALLA   UC, stab_start\n        MOVB    RL4, 807Fh\n")
     pops = _replace(pops, "pg_end:\n        BCLR    0FDF8h.3\n", "pg_end:\n        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n")
