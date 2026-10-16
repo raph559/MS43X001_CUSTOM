@@ -3182,9 +3182,9 @@ pops_defaults:
 ; 139 pops stabs: a 2.0 s load, +5.0 deg TPS stabs of 150 ms, 250 ms gaps, a 480 rpm rise once stabbing.
 stab_defaults:
         DB      014h, 019h, 00Fh, 019h, 00Fh, 000h, 000h, 000h
-; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 20.0 and 5.0 deg TPS, +10.1 deg.
+; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 30.0 and 5.0 deg TPS, +20.25 deg.
 blip_defaults:
-        DB      000h, 003h, 01Eh, 0BBh, 00Fh, 064h, 019h, 05Ah
+        DB      000h, 003h, 01Eh, 0BBh, 00Fh, 096h, 019h, 075h
 ; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s; a 150 ms lead.
 gears_defaults:
         DB      001h, 001h, 001h, 000h, 015h, 028h, 00Fh, 000h

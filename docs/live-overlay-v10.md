@@ -193,12 +193,16 @@ overshooting by 350 to 700 rpm, and the pops "not working AT ALL" (owner): the w
 loud noise, a stab pushed the car, and V8's 160 rpm rise rule ended each window after one or two stabs, since on the
 car a stab adds about 200 rpm. The owner's decisions: "put it by default plz" (the pops settings below), "do it by
 default" (a 20.0 °TPS blip), "lets do it" (the blip's predictive end, and the faults in the log), "it needs way more
-fuel i believe, and less pedal openning". The plan is the source contract.
+fuel i believe, and less pedal openning". The plan is the source contract. On
+2026-11-06 the owner asked for a really fast blip and chose "Make it the default": the blip opening went to its limit,
+30.0 °TPS, and its spark to +20.25° (the car's own maps give 23 to 34° at part load from 1,500 to 4,500 rpm). The
+V10.1 sent first (`b4568706…9396`) flashed 20.0 °TPS at +10.1°; the two builds differ in those two bytes and the
+checksum word only.
 
 - **Identification.** V10's sources are edited in place. The header's version word is `010Ah`: the low byte stays 10,
   so every V10 rule and the magic `C0DA` hold, and the high byte is the minor (V8.5's way); the status reply still
-  says 10. The build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin` (SHA-256 `b4568706…9396`), program
-  identity `9f3a0926…1bd1` (`ProgramIdentity.Ms43X001LiveOverlayV101`, known whatever its flashed settings). The sent
+  says 10. The build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin` (SHA-256 `2ba49c27…d203`), program
+  identity `309a5749…ed45` (`ProgramIdentity.Ms43X001LiveOverlayV101`, known whatever its flashed settings). The sent
   V10 (`708f767f…`) keeps its own name. V10's code now runs from `0C:F758` to `0C:FCCA`.
 - **Defaults** (the switches still off):
 
@@ -206,7 +210,7 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   |---|---|---|
   | 138 pops | `00 28 00 D2 7D 9E 1E 14` | 4.0 s, −23.625°, AFR 9.99, 4,000 rpm, 70.5 °C, 3.0 °TPS, 20 km/h |
   | 139 stabs | `14 19 0F 19 0F 00 00 00` | a 2.0 s load, +5.0 °TPS stabs of 150 ms every 400 ms, a 480 rpm rise once stabbing |
-  | 140 blip | `00 03 1E BB 0F 64 19 5A` | as V10, with a 20.0 °TPS blip opening |
+  | 140 blip | `00 03 1E BB 0F 96 19 75` | as V10, with a 30.0 °TPS blip opening fired at +20.25° |
   | 141 gears and tap | `01 01 01 00 15 28 0F 00` | as V10, with a 150 ms lead |
   | 142 ratios | `E2 86 59 43 00 00 00 00` | as V10 |
 
@@ -267,8 +271,8 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   code with V10's settings pinned (`V10Fixture.Classic`) and keep their numbers.
 - **Drives** (`V10DriveTests`): V10's drives as before; V10.1's own pops (`pops-v101`: 3rd at 120 km/h, one 4.0 s
   window, five 5.0 °TPS stabs on 3.0, the spark decided at −23.625°); a slope (`pops-downhill-v101`: about 270 rpm of
-  rise once stabbing keeps a 4.0 s window, and ends it with 139/4 = 5); a braking blip at 20.0 °TPS; no new fault on
-  any of them.
+  rise once stabbing keeps a 4.0 s window, and ends it with 139/4 = 5); a braking blip at 30.0 °TPS fired at +20.25° with
+  the torque guard quiet; no new fault on any of them.
 - **Against the sent V10, the switches off** (`build/compare-v10-v101`): no behaviour difference on any of the seven
   drives; full-load fails the injector check on both bins, as V9 to V10.
 - **CPU cost** (`V10CostTests`): a housekeeping pass takes 3,218 cycles in a stab window (V10: 2,456) and 3,039 during a
