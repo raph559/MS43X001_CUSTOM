@@ -207,11 +207,17 @@ def prepare(image):
                     "pg_pops:\n        PUSH    0FF10h                  ; PSW\n")
     pops = _replace(pops, "pops_spark:\n        JNB     0FDF8h.3, psk_stock\n",
                     "pops_spark:\n        JB      BLIP_ON, psk_blip\n        JNB     0FDF8h.3, psk_stock\n")
+    # V10.2, the cap: above the blip's target the spark is 141 byte 7's angle (flashed -23.625 deg), so the air already
+    # in the intake stops the climb instead of driving the rpm past the target (2026-11-07 log: +650 rpm at the peak).
     pops = _replace(pops, "psk_stock:\n        JMPS    0Bh, 05C84h\n",
                     "psk_stock:\n        JMPS    0Bh, 05C84h\n"
                     "psk_blip:\n        JNB     0FD2Ch.11, psk_stock\n        PUSH    0FF10h                  ; PSW\n"
                     "        MOV     [-R0], R2\n        MOV     [-R0], R3\n        MOV     [-R0], R4\n"
-                    "        MOV     R2, #140\n        MOV     R3, #7\n        CALLA   UC, v10_setting         ; the blip's own spark angle\n"
+                    "        MOV     R2, #140\n        MOV     R3, #7                  ; the blip's own spark angle\n"
+                    "        MOVB    RL4, 807Fh\n        CMPB    RL4, BLIP_TGT\n"
+                    "        JMPR    ULE, psk_angle          ; at or below the target\n"
+                    "        MOV     R2, #141                ; V10.2: above it, the cap angle (141 byte 7)\n"
+                    "psk_angle:\n        CALLA   UC, v10_setting\n"
                     "        MOVB    0E2B5h, RL4\n        MOV     R4, #0\n        MOVB    0E2B4h, RL4\n"
                     "        MOV     R4, [R0+]\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n        POP     0FF10h                  ; PSW\n"
                     "        JMPS    0Bh, 05C84h\n")
