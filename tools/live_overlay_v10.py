@@ -12,7 +12,7 @@ DEFAULTS_FILE = 0x4FF80
 # V10.1's defaults (owner, 2026-11-05: "put it by default plz", "do it by default"): pops at -23.625 deg, AFR 9.99,
 # 4,000 rpm and 3.0 deg TPS with 5.0 deg TPS stabs and a 480 rpm rise once stabbing; a 30.0 deg TPS blip at +20.25 deg
 # (2026-11-06: "Make it the default"), a 150 ms lead.
-POPS_DEFAULTS = bytes([0x00, 0x28, 0x00, 0xD2, 0x7D, 0x9E, 0x1E, 0x14])
+POPS_DEFAULTS = bytes([0x00, 0x28, 0x00, 0x46, 0x7D, 0x9E, 0x1E, 0x14])    # V10.2: byte 3 is the real AFR x 10, 7.0
 STAB_DEFAULTS = bytes([0x14, 0x19, 0x0F, 0x19, 0x0F, 0, 0, 0])
 BLIP_DEFAULTS = bytes([0x00, 0x03, 0x1E, 0xBB, 0x0F, 0x96, 0x19, 0x75])
 GEARS_DEFAULTS = bytes([0x01, 0x01, 0x01, 0x00, 0x15, 0x28, 0x0F, 0])
@@ -27,11 +27,72 @@ GROUPS = [dict(id=139, name="pops_stabs", address=0xCFF88, bytes=8, flags=2, fie
 # V10 reuses V8's gate, spark and throttle hooks and housekeeping, and adds one site (Task 7's finding): the in-cut handler
 # (0A:A9EE) re-checks the engine speed at 0A:AAA0 and refuels only below the re-entry rpm, so a blip that starts during a
 # running cut takes the stock re-entry at once (file offset: name, the donor's instruction).
-PINNED = {0x2AAA0: ("in-cut re-entry check", "2A244D2B")}
+PINNED = {0x2AAA0: ("in-cut re-entry check", "2A244D2B"),
+          0x3D4D4: ("AFR display join (V10.2)", "C2FCB891")}
 
 HOOKS = """
         ORG     0AAAA0h
         JMPS    0Ch, blip_reentry & 0FFFFh
+        ORG     0BD4D4h
+        JMPS    0Ch, pops_fuel & 0FFFFh
+"""
+
+# V10.2, the real pops AFR: at the shared rich path's join, during a window that pops_afr forced (91A0 = 2032), the
+# enrichment becomes the real AFR's, or the car file's own when richer, and the logged target the real mixture.
+POPS_FUEL = """
+; ---- V10.2, the AFR display join (0B:D4D4, MOVBZ R12, 91B8h): both branches of the shared rich path meet here, 91A0
+; set or cleared. When pops_afr forced the rich path in this pass (a window, the pops AFR below 14.7, so 91A0 holds the
+; forced 2032) and the lambda loop is off, the enrichment becomes the real AFR's, (147 - A) x 4096 / A, or the car
+; file's own (POPS_XSTOCK - 128) x 16 when that is richer, and 91B9, the logged target, the real mixture: 91B8 x 4096 /
+; (4096 + 91A0). MULU and DIVLU as the stock 0D:194C uses them at 0B:D4E0 in the same pass; R4, R5, R12, R13 and MD are
+; scratch there, and R5 and R12 are left as the stock code leaves them. Otherwise the displaced instruction runs. ----
+pops_fuel:
+        JNB     0FDF8h.3, pf_stock
+        JNB     0FD2Ch.11, pf_stock
+        JB      0FDF8h.2, pf_stock
+        JNB     0FD9Ah.10, pf_stock
+        MOV     R12, 091A0h
+        CMP     R12, #2032
+        JMPR    NZ, pf_stock            ; not forced by pops_afr in this pass
+        MOV     [-R0], R3
+        MOV     R3, #3
+        CALLA   UC, pops_setting        ; A, the real AFR x 10, 50..147
+        MOV     R3, [R0+]
+        CMP     R4, #147
+        JMPR    UGE, pf_stock
+        MOV     R12, #147
+        SUB     R12, R4
+        MOV     R13, #4096
+        MULU    R12, R13                ; MD = (147 - A) x 4096
+        DIVLU   R4                      ; / A: at most 7,946 at 5.0
+        MOV     R12, 0FE0Eh             ; MDL
+        MOVBZ   R13, POPS_XSTOCK
+        CMP     R13, #128
+        JMPR    ULE, pf_store           ; the car file's byte at lambda 1 or leaner adds nothing
+        SUB     R13, #128
+        SHL     R13, #4                 ; (X - 128) x 16, as the shared path stores it
+        CMP     R13, R12
+        JMPR    ULE, pf_store
+        MOV     R12, R13                ; the car file's own target is the richer
+pf_store:
+        MOV     091A0h, R12
+        MOVBZ   R13, 091B8h
+        MOV     R4, #4096
+        MULU    R13, R4                 ; MD = 91B8 x 4096
+        ADD     R12, #4096
+        DIVLU   R12                     ; / (4096 + 91A0): the real mixture
+        MOV     R4, 0FE0Eh              ; MDL
+        CMP     R4, #255
+        JMPR    ULE, pf_shown
+        MOV     R4, #255
+pf_shown:
+        MOVB    091B9h, RL4
+        MOV     R5, #1000h
+        MOVBZ   R12, 091B8h
+        JMPS    0Bh, 0D4E8h
+pf_stock:
+        MOVBZ   R12, 091B8h
+        JMPS    0Bh, 0D4D8h
 """
 
 # V10's state, ahead of the pops include that is the first to use it: pool A logical 668..679 (through DPP2), below the
@@ -47,6 +108,8 @@ BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (3
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
 BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
 BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
+POPS_XSTOCK     EQU     09FA7h          ; byte: in a pops window, the car file's own target byte (V10.2); shares BLIP_RATE,
+                                        ; as no blip runs in a window and every blip's start resets the rate
 POPS_STABS      EQU     09FBFh          ; byte: the stabs begun in this pops window, up to 255, for the log (V10.1)
 POPS_STAB       BIT     0FDF8h.7        ; a stab is on
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
@@ -99,7 +162,7 @@ def prepare(image):
                       '        IF      $ > 0CFF80h\n        ERROR   "the V10 code overruns the pops defaults"\n')
     source = _replace(source, "; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, "
                               "no throttle, 20 km/h.\n",
-                      "; The flashed pops settings: off, 4.0 s, -23.625 deg, 9.99 AFR (210), 4,000 rpm, 70.5 deg C, "
+                      "; The flashed pops settings: off, 4.0 s, -23.625 deg, a real AFR of 7.0 (70), 4,000 rpm, 70.5 deg C, "
                       "3.0 deg TPS, 20 km/h.\n")
     source = _replace(source, "pops_defaults:\n        DB      000h, 014h, 017h, 0B8h, 032h, 09Eh, 000h, 014h\n",
                       "pops_defaults:\n" + _db(POPS_DEFAULTS)
@@ -141,11 +204,20 @@ def prepare(image):
     # window ends clears POPS_STAB; the throttle store adds the stab's extra while POPS_STAB is set and GUARD is clear.
     source = _replace(source, '        INCLUDE "live_overlay_v10_groups.inc"\n',
                       '        INCLUDE "live_overlay_v10_groups.inc"\n        INCLUDE "live_overlay_v10_blip.inc"\n')
-    # V10.1: the pops AFR target reaches 255 (lambda 0.504, AFR 7.4) through the same shared rich path, a byte throughout.
+    # V10.2: the pops AFR target is the real AFR x 10, 5.0..14.7 in petrol AFR (a lambda, A/147, on either fuel). pops_afr
+    # keeps the car file's byte and forces the shared rich path; pops_fuel writes the real enrichment at the path's join.
     pops = _replace(pops, "        DB      128, 210        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, "
                           "184 = 11.5, 210 = 10.0)\n",
-                    "        DB      128, 255        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, "
-                    "184 = 11.5, 255 = 7.4)\n")
+                    "        DB      50, 147         ; 3 AFR target, the real AFR x 10 in petrol AFR (V10.2): 50 = 5.0, "
+                    "147 = 14.7\n")
+    pops = _replace(pops, "        MOV     R12, R4                 ; the same value for both fuels, so the blend returns it\n"
+                          "        MOV     R13, R4\n",
+                    "        MOV     R12, R6                 ; V10.2: at 14.7 the car file's own target, as stock\n"
+                    "        CMP     R4, #147\n        JMPR    UGE, pa_pass\n"
+                    "        MOVB    POPS_XSTOCK, RL6        ; the car file's byte, for pops_fuel's richer-of rule\n"
+                    "        MOV     R12, #255               ; forces the shared rich path: the lambda loop off, 91A0 = 2032\n"
+                    "pa_pass:\n        MOV     R13, R12                ; the same value for both fuels, so the blend returns it\n")
+    pops += POPS_FUEL
     # V10.1, the rise once stabbing: a stab adds about 200 rpm on the car (2026-11-05), so V8's 160 rpm rule ended each
     # window after one or two stabs. rise_allowance keeps 160 rpm during the load and uses 139 byte 4 once stabbing.
     pops = _replace(pops, "        MOV     R5, R4\n        ADD     R5, #5\n        CMP     R3, R5\n",
