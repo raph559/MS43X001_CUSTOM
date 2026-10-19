@@ -187,6 +187,38 @@ The natural first build is option "ignition pair live" — it fits with 64 bytes
 covers the owner's main interest, and it exercises the whole mechanism (stub, directory, DS2
 command, key-on reset) before anything harder is attempted.
 
+### Which tables, decided by looking at the tune
+
+`TUNE_ANALYSIS.md` works out how the car's own calibration was made and which tables carry
+the hand-made edits. The outcome:
+
+- The tuner works on **`ip_iga_ron98_pl__n__maf`** (0x77315): +1.5° in the high-load columns
+  from 3000 rpm up, plus the 6990 rpm row dropped to −23.6° for the "flames" band. RON91 was
+  left at stock apart from that row.
+- The fuelling knob is **`ip_af_target_ron98__maf__n`** (0x7D69C): the 6990 rpm column set to
+  λ 0.781 for the flames band. There is no injection map on MS43X001 to tune.
+- **Half the tune never reached the engine.** Every e85 table in the release is a byte-identical
+  copy of its RON98 twin, and the blend helper 0D:1850 computes
+  `base + (twin − base)·f/32` with the flex factor — which is 0 because `c_conf_ff` = 0 on this
+  car. So the e85 tables are inert, and the tune's VANOS exhaust-cam edit (112 cells in
+  `ip_cam_sp_e85_ex_pl`, with the live `ip_cam_sp_ron98_ex_pl` untouched) is a **no-op**.
+
+**Live set (fits the 736 B with ~104 B spare):**
+
+| Table | Address | Bytes |
+|---|---|---|
+| `ip_iga_ron98_pl__n__maf` | 0x77315 | 320 |
+| `ip_af_target_ron98__maf__n` | 0x7D69C | 192 |
+| `ip_iga_ron98_is__n__maf` | 0x775D4 | 36 |
+| `ip_iga_puc__n__tco` | 0x7717D | 24 |
+| `ip_ti_fac_map__map`, `ip_ti_fac_ti__ti` | 0x7D974, 0x7D984 | 32 |
+| `c_inj_flow` | 0x70E14 | 2 |
+| directory + flags | | ~26 |
+
+RON91 (320 B) is left in flash — the octane blend works with one half in RAM. The MBT
+reference (192 B) does not fit either. The VE maps are excluded on purpose: a VE map is the
+load model, so editing it live moves everything at once, whereas a λ target is a bounded knob.
+
 ---
 
 ## 6. The K-line command surface
