@@ -31,27 +31,26 @@ leaves 0x55/0xAA/0xFF patterns behind.
 
 | External RAM | Size | Contents |
 |---|---|---|
-| 0x9D00–0x9D1F | 32 B | overlay control block (see §2) |
-| 0x9D20–0x9DFF | 224 B | shadow: `ip_iga_ron98_pl` (320 B) does **not** fit here — see below |
+| 0x9D00–0x9FDF | 736 B | the whole shadow area: 680 B used, 56 B spare |
 
-Recheck the budget: the live set is 606 B of tables and ~26 B of directory, which exceeds the
+Recheck the budget: the live set is 604 B of tables and ~26 B of directory, which exceeds the
 736 B block only if the directory is counted twice. Exact layout (all in external RAM, page
 0x10, so the offset within the page is address − 0x8000):
 
-| Address | Size | Contents |
-|---|---|---|
-| 0x9D00 | 2 | magic 0xC0DE (overlay enabled) |
-| 0x9D02 | 1 | entry count |
-| 0x9D04 | 6 × 8 | directory: u16 flash offset, u8 flash page, u16 RAM offset, u8 RAM page, u8 flags, u8 pad |
-| 0x9D40 | 320 | `ip_iga_ron98_pl__n__maf` (0x77315) |
-| 0x9D80 | 192 | `ip_af_target_ron98__maf__n` (0x7D69C) |
-| 0x9E40 | 36 | `ip_iga_ron98_is__n__maf` (0x775D4) |
-| 0x9E64 | 24 | `ip_iga_puc__n__tco` (0x7717D) + 12 B RAM descriptor |
-| 0x9E80 | 16 | `ip_ti_fac_map__map` (0x7D974) |
-| 0x9E90 | 16 | `ip_ti_fac_ti__ti` (0x7D984) |
-| 0x9EA0 | 12 | RAM descriptor for `ip_iga_puc` (§4) |
-| 0x9EAC | 4 | spare |
-| **total** | **604 B** | of 736 B (0x9D00–0x9FDF) |
+| Address | Size | Ends at | Contents |
+|---|---|---|---|
+| 0x9D00 | 2 | 0x9D02 | magic 0xC0DE (overlay enabled) |
+| 0x9D02 | 1 | 0x9D03 | entry count |
+| 0x9D04 | 48 | 0x9D34 | directory: 6 entries × 8 bytes (see §2) |
+| 0x9D40 | 320 | 0x9E80 | `ip_iga_ron98_pl__n__maf` (0x77315) |
+| 0x9E80 | 192 | 0x9F40 | `ip_af_target_ron98__maf__n` (0x7D69C) |
+| 0x9F40 | 36 | 0x9F64 | `ip_iga_ron98_is__n__maf` (0x775D4) |
+| 0x9F64 | 24 | 0x9F7C | `ip_iga_puc__n__tco` (0x7717D) |
+| 0x9F7C | 12 | 0x9F88 | RAM descriptor for `ip_iga_puc` (§4) |
+| 0x9F88 | 16 | 0x9F98 | `ip_ti_fac_map__map` (0x7D974) |
+| 0x9F98 | 16 | 0x9FA8 | `ip_ti_fac_ti__ti` (0x7D984) |
+| 0x9FA8 | 56 | 0x9FDF | spare |
+| | **680 B** | | of 736 B |
 
 `c_inj_flow` is **not** shadowed — see §6.
 
@@ -106,10 +105,14 @@ The 0x6D slot is dead in this firmware: the dispatcher sends both 0x6C and 0x6D 
 One stub per reader, because the stub has to jump to the right reader at the end.
 
 **Register rules.** The stub may use only the registers the reader it replaces already
-modifies. For 0D:029A that is **R2, R3, R4, R5, R10, R15, MDH, MDL** (the reader sets R2, R3, R5
-itself and uses R4/R10/R15/MDH/MDL). Everything else — R0, R1, R6, R7, R8, R9, R11, R14 — must
-come out unchanged, and R12/R13 may change only by the intended substitution. Check the
+modifies. For 0D:029A that is **R2, R3, R4, R5, R10, R15, MDH, MDL** — read from the whole
+reader body (0x5029A–0x5033C): it sets R2, R3, R5 itself, uses R4 as the high half of the
+multiply, R10 and R15 for the interpolation fractions, and R12/R13 as the parameters. It
+touches nothing else. Everything else — R0, R1, R6, R7, R8, R9, R11, R14 — must come out of
+the stub unchanged, and R12/R13 may change only by the intended substitution. Check the
 register use of 0D:0262 and 0D:0C72 the same way before writing their stubs.
+
+**The emulator run is the proof** that the stub's register use is safe (see §10).
 
 **stub_A — replaces 0D:029A (u8 2-axis map, bilinear)**
 
@@ -191,6 +194,14 @@ So a live trim needs **no shadow and no hook**: the app writes 91B6 directly (2 
 sub-command 05. Beware of the sign: pulse width ∝ 1/91B6, so a *smaller* 91B6 = more fuel.
 The flash constant 0x70E14 is 225 in the car (237 in the release) = +5.3 % fuel.
 
+**Verified that a live write sticks** [ver]: 91B6 and 91B8 are written in exactly one place
+(0x4B444 and 0x4B470), and the routine that does it (0xC:41EC) is called from exactly two
+places — 0xB:0086, which is the start-up task, and 0xC:367A, which is **unreachable**: the
+instruction before it at 0xC:3676 is an unconditional `JMPA 0xC3CBC`, and nothing in the image
+jumps or calls to 0xC:367A (MS43X001 left the old call site behind when it refactored the
+fuel model). So K is computed **at start-up only**, and a live write to 91B6 survives until the
+next key-on.
+
 **In closed-loop areas the lambda trims absorb this** and the driver feels nothing; it shows
 up in the open-loop areas (full load, enrichments) and in the trim values. **On this car both
 O2 sensors are unplugged**, so there is no closed loop at all and the +5.3 % applies across the
@@ -201,16 +212,24 @@ whole map (CAR_TUNE.md, "Lambda").
 The firmware keeps a set of **runtime-adjustable application-system values in RAM**, copied
 from the calibration at start-up by the routine at file 0x1DC06 (CPU 0x9DC06):
 
-| Flash calibration | RAM | Value |
+| Flash calibration (file offset) | RAM | Value |
 |---|---|---|
-| 0x70A3–0x70A8 | 80EF–80F4 | `t_ti_as_0..5` — per-cylinder injection time multipliers (128 = 1.0) |
+| 0x700A3–0x700A8 | 80EF–80F4 | `t_ti_as_0..5` — per-cylinder injection time multipliers (128 = 1.0) |
 | 0x70092 / 0x70093 | 80DE / 80DF | `t_cam_sp_as_ex` / `_in` — exhaust and intake cam target offsets |
 | 0x7009B–0x7009F, 0x70094–0x70096 | 80E0–80EB | `t_lshpwm_as_*` — lambda sensor heater duty offsets (pointless with the sensors unplugged) |
+
+(0x70092 and 0x700A3 are the *file* offsets; the code reads them as calibration-page offsets
+0x0092 and 0x00A3 with DPP0 = 0x1C.)
 
 Only the start-up routine writes them in the program area; everything else only reads them
 [obs]. So they are *designed* to be changed at runtime — by BMW's "application system" write,
 for which we have not found a DS2 command (the adaptation-write blocks at 0x8221, 0x8321, …
 are elsewhere and hold learned values).
+
+**One detail that matters:** the copy at 0x9DC06 is skipped entirely when **FD1C.0** is set
+(`JB FD1Ch.0, 0x9DC2h` at file 0x1DC06) — i.e. once something has written those values at
+runtime, the start-up routine will not overwrite them with the flash defaults. That is
+consistent with the application system being designed for runtime writes.
 
 **Worth one question to an expert:** if there is a K-line command that writes the
 application-system values, the overlay could use it instead of a new command, and the cam
