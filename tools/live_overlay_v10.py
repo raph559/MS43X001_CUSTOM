@@ -28,13 +28,18 @@ GROUPS = [dict(id=139, name="pops_stabs", address=0xCFF88, bytes=8, flags=2, fie
 # (0A:A9EE) re-checks the engine speed at 0A:AAA0 and refuels only below the re-entry rpm, so a blip that starts during a
 # running cut takes the stock re-entry at once (file offset: name, the donor's instruction).
 PINNED = {0x2AAA0: ("in-cut re-entry check", "2A244D2B"),
-          0x3D4D4: ("AFR display join (V10.2)", "C2FCB891")}
+          0x3D4D4: ("AFR display join (V10.2)", "C2FCB891"),
+          0x7DE64: ("start pre-injection, stock X001 again (V10.2)", "D0FB9DC11F854358763E7825C317D010")}
 
 HOOKS = """
         ORG     0AAAA0h
         JMPS    0Ch, blip_reentry & 0FFFFh
         ORG     0BD4D4h
         JMPS    0Ch, pops_fuel & 0FFFFh
+; V10.2, the owner's choice (2026-11-08): the start's pre-injection, ip_tipr_cst__tco (8 cells over coolant, 0.00533 ms),
+; back to stock X001; the car file has it x 1.6 at every temperature (23.0 ms at 90 deg C, stock 14.4).
+        ORG     0FDE64h
+        DB      062h, 09Dh, 002h, 079h, 033h, 053h, 02Ah, 037h, 00Ah, 027h, 06Bh, 017h, 0DAh, 00Eh, 082h, 00Ah
 """
 
 # V10.2, the real pops AFR: at the shared rich path's join, during a window that pops_afr forced (91A0 = 2032), the
@@ -140,7 +145,7 @@ def prepare(image):
     source = source.replace("protocol 9", "protocol 10").replace("docs/live-overlay-v9.md", "docs/live-overlay-v10.md")
     source = _replace(source, "OVL_VERSION     EQU     9 ", "OVL_VERSION     EQU     10")
     source = _replace(source, "N_TABLES        EQU     139", "N_TABLES        EQU     143")
-    source = _replace(source, "        DW      OVL_VERSION\n", "        DW      OVL_VERSION + 0100h     ; V10.1: the high byte is the minor\n")
+    source = _replace(source, "        DW      OVL_VERSION\n", "        DW      OVL_VERSION + 0200h     ; V10.2: the high byte is the minor\n")
     source = source.replace("C0D9", "C0DA")
     # Pool A keeps its last 36 bytes: V10's state (041F9C..041FA7), the watch record and pops' state. No allocation may
     # reach logical offset 668, and the free space reported to the app is 896 bytes.
