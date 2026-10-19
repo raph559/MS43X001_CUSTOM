@@ -2,11 +2,34 @@
 
 Everything another session needs to build the live-tuning overlay, with no re-derivation.
 Companion documents: `LIVE_OVERLAY.md` (the design), `TUNE_ANALYSIS.md` (which tables and why),
-`HANDOFF.md` (state), `REPORT.md` (toolchain and the emulator).
+`HANDOFF.md` (state), `REPORT.md` (toolchain and the emulator), `patches/README.md` (the built
+patch and the assembler constraints).
 
 Target: the car's own image, `bins/CAR_current_43X001_SP95_STAGE1.bin`. Work on copies only.
 Nothing has been flashed. The program tag (0x6FFF0), the calibration tag (0x7FFF0) and the boot
 block are never written.
+
+**Status 2026-10-19: the patch is written and builds** (`patches/overlay.asm`, see
+`patches/README.md`). Both the car's image and the stock 430069 image assemble, apply and verify
+(all five checksums OK), with the boot block, the 0x8000 sector, the validity tags and the
+calibration data untouched. **The emulator regression is the remaining gate** (§10) — nothing
+goes near the flasher before it passes.
+
+The live set that is implemented (the owner agreed this set):
+
+| Table | Address | Bytes | Reader | Call site |
+|---|---|---|---|---|
+| `ip_iga_ron98_pl__n__maf` | 0x77315 | 320 | 0D:029A | file 0x2C650 |
+| `ip_af_target_ron98__maf__n` | 0x7D69C | 192 | 0D:029A | file 0x3D40A |
+| `ip_iga_ron98_is__n__maf` | 0x775D4 | 36 | 0D:029A | file 0x2C3A4 |
+| `ip_ti_fac_map__map` | 0x7D974 | 16 | 0D:0262 | file 0x4AB5A |
+| `ip_ti_fac_ti__ti` | 0x7D984 | 16 | 0D:0262 | file 0x4AB80 |
+| K (the fuelling denominator) | RAM 91B6 | 2 | — | written directly, no hook |
+
+`ip_iga_puc__n__tco` was **dropped**: it is read through 0D:0C72, a *descriptor* helper that
+always resolves the descriptor through DPP1 (the constants area), so a RAM descriptor is not
+possible and the table cannot be shadowed the same way. It is a 24-byte warm-up ignition map,
+not worth a second mechanism in the first build.
 
 ---
 
@@ -33,24 +56,22 @@ leaves 0x55/0xAA/0xFF patterns behind.
 |---|---|---|
 | 0x9D00–0x9FDF | 736 B | the whole shadow area: 680 B used, 56 B spare |
 
-Recheck the budget: the live set is 604 B of tables and ~26 B of directory, which exceeds the
+Recheck the budget: the live set is 580 B of tables and 100 B of directory, which exceeds the
 736 B block only if the directory is counted twice. Exact layout (all in external RAM, page
 0x10, so the offset within the page is address − 0x8000):
 
 | Address | Size | Ends at | Contents |
 |---|---|---|---|
 | 0x9D00 | 2 | 0x9D02 | magic 0xC0DE (overlay enabled) |
-| 0x9D02 | 1 | 0x9D03 | entry count |
-| 0x9D04 | 48 | 0x9D34 | directory: 6 entries × 8 bytes (see §2) |
-| 0x9D40 | 320 | 0x9E80 | `ip_iga_ron98_pl__n__maf` (0x77315) |
-| 0x9E80 | 192 | 0x9F40 | `ip_af_target_ron98__maf__n` (0x7D69C) |
-| 0x9F40 | 36 | 0x9F64 | `ip_iga_ron98_is__n__maf` (0x775D4) |
-| 0x9F64 | 24 | 0x9F7C | `ip_iga_puc__n__tco` (0x7717D) |
-| 0x9F7C | 12 | 0x9F88 | RAM descriptor for `ip_iga_puc` (§4) |
+| 0x9D02 | 2 | 0x9D04 | slot count |
+| 0x9D04 | 96 | 0x9D64 | directory: 6 slots × 16 bytes (see §2) |
+| 0x9D64 | 320 | 0x9EA4 | `ip_iga_ron98_pl__n__maf` (0x77315) |
+| 0x9EA4 | 192 | 0x9F64 | `ip_af_target_ron98__maf__n` (0x7D69C) |
+| 0x9F64 | 36 | 0x9F88 | `ip_iga_ron98_is__n__maf` (0x775D4) |
 | 0x9F88 | 16 | 0x9F98 | `ip_ti_fac_map__map` (0x7D974) |
 | 0x9F98 | 16 | 0x9FA8 | `ip_ti_fac_ti__ti` (0x7D984) |
 | 0x9FA8 | 56 | 0x9FDF | spare |
-| | **680 B** | | of 736 B |
+| | **680 B** | | of 736 B
 
 `c_inj_flow` is **not** shadowed — see §6.
 
@@ -83,74 +104,74 @@ another 4-byte `CALLS` — same size, no code moves.
 
 | Table | Data | Reader | Call site (file / CPU) | Bytes now | Bytes after |
 |---|---|---|---|---|---|
-| `ip_iga_ron98_pl__n__maf` | 0x77315 | 0D:029A | 0x2C650 / 0xAC650 | `da 0d 9a 02` | `da 0d xx xx` → stub_A |
-| `ip_af_target_ron98__maf__n` | 0x7D69C | 0D:029A | 0x3D40A / 0xBD40A | `da 0d 9a 02` | `da 0d xx xx` → stub_A |
-| `ip_iga_ron98_is__n__maf` | 0x775D4 | 0D:029A | 0x2C3A4 / 0xAC3A4 | `da 0d 9a 02` | `da 0d xx xx` → stub_A |
-| `ip_ti_fac_map__map` | 0x7D974 | 0D:0262 | 0x4AB5A / 0xCAB5A | `da 0d 62 02` | `da 0d xx xx` → stub_B |
-| `ip_ti_fac_ti__ti` | 0x7D984 | 0D:0262 | 0x4AB80 / 0xCAB80 | `da 0d 62 02` | `da 0d xx xx` → stub_B |
-| `ip_iga_puc__n__tco` | 0x7717D | 0D:0C72 | 0x2C904 / 0xAC904 | `da 0d 72 0c` | `da 0d xx xx` → stub_C |
-| DS2 command 0x6D | — | — | 0x1FC8A / 0x81FC8A | `da 09 b6 ff` | `da 0c xx xx` → handler |
+| `ip_iga_ron98_pl__n__maf` | 0x77315 | 0D:029A | 0x2C650 / 0xAC650 | `da 0d 9a 02` | `da 0d 45 b5` → stub A |
+| `ip_af_target_ron98__maf__n` | 0x7D69C | 0D:029A | 0x3D40A / 0xBD40A | `da 0d 9a 02` | `da 0d 45 b5` → stub A |
+| `ip_iga_ron98_is__n__maf` | 0x775D4 | 0D:029A | 0x2C3A4 / 0xAC3A4 | `da 0d 9a 02` | `da 0d 45 b5` → stub A |
+| `ip_ti_fac_map__map` | 0x7D974 | 0D:0262 | 0x4AB5A / 0xCAB5A | `da 0d 62 02` | `da 0d 85 b5` → stub B |
+| `ip_ti_fac_ti__ti` | 0x7D984 | 0D:0262 | 0x4AB80 / 0xCAB80 | `da 0d 62 02` | `da 0d 85 b5` → stub B |
+| DS2 command 0x6D | — | — | 0x1FC8A / 0x81FC8A | `da 09 b6 ff` | `da 0c d5 b5` → the handler |
 
-The 0x6D slot is dead in this firmware: the dispatcher sends both 0x6C and 0x6D to 09:FFB6, the
-"unknown" reply [obs].
+(The 0x6D slot is dead in this firmware: the dispatcher sends both 0x6C and 0x6D to 09:FFB6, the
+"unknown" reply [obs].)
 
 **Note the three call sites of 0D:0C72** at 0x2C8F8/0x2C90E/0x2C924 (descriptors 0x4848, 0x483C,
-0x4830) — the warm-up ignition map is one of three variants chosen by condition. Only
-0x2C904 (descriptor 0x4848 → table 0x7717D) is in the live set.
+0x4830) — the warm-up ignition map is one of three variants chosen by condition. That table is
+not in the live set (see the header).
 
 ---
 
-## 4. The three stubs
+## 4. The stubs
 
-One stub per reader, because the stub has to jump to the right reader at the end.
+One stub per reader, because the stub has to jump to the right reader at the end. The stub
+*replaces* the reader's `CALLS`, so it is entered with R12 = the flash offset and R13 = the
+flash page, and it leaves R12/R13 pointing at the RAM copy when the table is shadowed.
+
+**Both stubs are written** (`patches/overlay.asm`, stub A at CPU 0xCB545, stub B at 0xCB585) —
+the design below is what they implement.
 
 **Register rules.** The stub may use only the registers the reader it replaces already
 modifies. For 0D:029A that is **R2, R3, R4, R5, R10, R15, MDH, MDL** — read from the whole
 reader body (0x5029A–0x5033C): it sets R2, R3, R5 itself, uses R4 as the high half of the
 multiply, R10 and R15 for the interpolation fractions, and R12/R13 as the parameters. It
-touches nothing else. Everything else — R0, R1, R6, R7, R8, R9, R11, R14 — must come out of
-the stub unchanged, and R12/R13 may change only by the intended substitution. Check the
-register use of 0D:0262 and 0D:0C72 the same way before writing their stubs.
+touches nothing else. For 0D:0262 it is **R2, R4, R10, MDH, MDL**. Both stubs use only
+**R2, R4, R10**, and both readers re-initialise all three before using them.
+
+Everything else — R0, R1, R6, R7, R8, R9, R11, R14 — must come out of the stub unchanged, and
+R12/R13 may change only by the intended substitution.
 
 **The emulator run is the proof** that the stub's register use is safe (see §10).
+
+**The addressing.** The C167 forms the physical address as
+`(DPP[segment] << 14) + (offset & 0x3FFF)`, with the segment in bits 15:14 of the 16-bit
+address. The shadow at 0x9D00-0x9FDF is therefore segment 2 → **DPP2** (0x10, the external RAM
+window), and the stub reaches it with a register pointer holding 0x9Dxx. The substitution it
+makes is R12 = the offset inside the 8 KiB window (0x1D00…) and R13 = 0x10, which is exactly
+what the reader expects after its own `EXTP R13`. The stub never has to touch DPP0 or DPP1.
 
 **stub_A — replaces 0D:029A (u8 2-axis map, bilinear)**
 
 ```
-stub_A:
-        ; entry: R12 = flash offset, R13 = flash page
-        ; 1. if the overlay is off -> jump to real_reader
-        ; 2. scan the directory for (R12, R13) with the active flag set
-        ; 3. if found: R12 = RAM offset, R13 = 0x10
-        ; 4. fall through to real_reader
-real_reader:
-        JMPA  0Dh, 029Ah
+stubA:
+        MOV   0FE04h, #010h        ; DPP2 = external RAM
+        MOV   R2, #09D00h           ; the control block
+        MOV   R10, [R2]             ; the magic
+        CMP   R10, #0C0DEh
+        JMPR  NZ, Aoff
+        MOV   R4, [R2+02h]          ; the slot count
+        ADD   R2, #0004h            ; -> the directory
+Aloop:  ...                       ; compare (R12, R13) against each slot
+        MOV   R12, [R2+04h]         ; the RAM offset
+        MOV   R13, [R2+06h]         ; the RAM page
+Aoff:
+Adone:  CALLS 0Dh, 029Ah           ; then the real reader
+        RETS
 ```
 
-**stub_B — replaces 0D:0262 (u8 1-axis curve, interpolating)**: identical logic, ending
-`JMPA 0Dh, 0262h`.
+**stub_B — replaces 0D:0262 (u8 1-axis curve, interpolating)**: the same, ending
+`CALLS 0Dh, 0262h`.
 
-**stub_C — replaces 0D:0C72 (descriptor helper)** [the awkward one]
-
-0D:0C72 is not a direct reader: R12 points at a **descriptor** in the constants area, and the
-descriptor holds {data_off, data_page, ax1_off, ax1_page, ax2_off, ax2_page}. For
-`ip_iga_puc` the descriptor is at file 0x6C848 (CPU 0xC:C848, page 0x3B offset 0xC848).
-
-```
-stub_C:
-        ; entry: R12 = descriptor pointer (0xC848), R13/R14 = the two axis inputs
-        ; 1. if the overlay is off -> JMPA 0Dh, 0C72h
-        ; 2. if R12 == 0xC848 (the descriptor of ip_iga_puc) and the entry is active:
-        ;       R12 = 0x9EA0  (the RAM descriptor)
-        ; 3. JMPA 0Dh, 0C72h
-```
-
-The RAM descriptor at 0x9EA0 is a copy of the flash descriptor with the data fields replaced
-by the RAM copy of the table (data_off = 0x1E64, data_page = 0x10); the axis fields stay as
-they are (they still point into flash, which is correct — the axes are not being edited).
-
-**Alternative:** drop `ip_iga_puc` from the first build. It is 24 bytes of warm-up ignition for
-a cold engine and needs a different mechanism. The set still fits without it (580 B).
+**The descriptor case is gone.** `ip_iga_puc` was dropped from the live set (see the header),
+so no stub for 0D:0C72 is needed.
 
 ---
 
@@ -160,26 +181,36 @@ Frame format is the one the existing handlers use (see 09:FF96): `12 <len> <stat
 <xor>`. Status bytes: A0 ack, A1 busy, A2 rejected, B0 parameter error, B1 function error,
 FF unknown. The request side follows the read command: `12 <len> 6D <sub> <args...> <xor>`.
 
+The handler reads its request from **F6D0** and builds the reply in **F74E** (length),
+**F74F** (status) and **F750** (payload) — the same convention as the read handler at 0A:6A38.
+The words in the request are kept 16-bit aligned so they can be read directly:
+
+| Offset | Meaning |
+|---|---|
+| F6D0 | the sub-command (byte) |
+| F6D1 | reserved |
+| F6D2/F6D3 | p1 (word) |
+| F6D4/F6D5 | p2 (word) |
+| F6D6/F6D7 | p3 (word) |
+| F6D8/F6D9 | p4 (word) |
+| F6DA.. | data |
+
 | Sub | Direction | Function |
 |---|---|---|
-| 00 | reply | status: magic present?, entry count, free bytes, overlay enabled |
-| 01 | request | upload N bytes into the shadow area at a given offset |
-| 02 | request | bind: (flash offset, flash page, RAM offset, size) → create a directory entry |
-| 03 | request | unbind one entry |
-| 04 | request | revert everything: zero the magic and all the entries |
-| 05 | request | write the global fuelling trim (RAM 91B6) |
+| 00 | reply | status: F750 = armed (0/1), F751 = the slot count, F752/3 = K (91B6) |
+| 01 | request | upload: p1 = the offset in the shadow, p2 = the length (1..123), the data at F6DA |
+| 02 | request | bind: p1 = the flash offset, p2 = the flash page, p3 = the RAM offset, p4 = the RAM page; **arms the overlay** |
+| 03 | request | unbind: p1 = the flash offset, p2 = the flash page |
+| 04 | request | revert: everything back to stock (the magic is cleared) |
+| 05 | request | write K: p1 = the new value of 91B6 |
 
-The handler lives in the free code area (§8) and is entered from the patched dispatcher slot.
-Reply with the same status convention; use B0 for a bad length or address.
-
-**Framing detail:** the DS2 payload after the command byte starts at F6D0 in the existing
-handlers, with F6D0 = the first payload byte, F6D1.. the rest, and the length in F6D4 for the
-read command. The new handler should follow the same convention so the existing receive path
-works unchanged.
-
-**K-line budget:** at 9600 baud a 320-byte ignition map is about 0.4 s; the whole 604-byte
+**K-line budget:** at 9600 baud a 320-byte ignition map is about 0.4 s; the whole 580-byte
 shadow about 0.8 s. At the 125000 baud logger rate it is negligible. Upload only the table
 that changed.
+
+**The order matters:** upload first, then bind (which arms the overlay), because the magic is
+what makes the stubs redirect. The boot RAM test wipes the magic at every key-on, so the app has
+to re-upload and re-bind after every start.
 
 ---
 
