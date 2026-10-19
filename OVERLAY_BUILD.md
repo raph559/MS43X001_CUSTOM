@@ -192,7 +192,31 @@ sub-command 05. Beware of the sign: pulse width ∝ 1/91B6, so a *smaller* 91B6 
 The flash constant 0x70E14 is 225 in the car (237 in the release) = +5.3 % fuel.
 
 **In closed-loop areas the lambda trims absorb this** and the driver feels nothing; it shows
-up in the open-loop areas (full load, enrichments) and in the trim values.
+up in the open-loop areas (full load, enrichments) and in the trim values. **On this car both
+O2 sensors are unplugged**, so there is no closed loop at all and the +5.3 % applies across the
+whole map (CAR_TUNE.md, "Lambda").
+
+### 6a. The "application system" values — a possible existing write path
+
+The firmware keeps a set of **runtime-adjustable application-system values in RAM**, copied
+from the calibration at start-up by the routine at file 0x1DC06 (CPU 0x9DC06):
+
+| Flash calibration | RAM | Value |
+|---|---|---|
+| 0x70A3–0x70A8 | 80EF–80F4 | `t_ti_as_0..5` — per-cylinder injection time multipliers (128 = 1.0) |
+| 0x70092 / 0x70093 | 80DE / 80DF | `t_cam_sp_as_ex` / `_in` — exhaust and intake cam target offsets |
+| 0x7009B–0x7009F, 0x70094–0x70096 | 80E0–80EB | `t_lshpwm_as_*` — lambda sensor heater duty offsets (pointless with the sensors unplugged) |
+
+Only the start-up routine writes them in the program area; everything else only reads them
+[obs]. So they are *designed* to be changed at runtime — by BMW's "application system" write,
+for which we have not found a DS2 command (the adaptation-write blocks at 0x8221, 0x8321, …
+are elsewhere and hold learned values).
+
+**Worth one question to an expert:** if there is a K-line command that writes the
+application-system values, the overlay could use it instead of a new command, and the cam
+offset would become a live knob for free. Until that is answered, the plan stays as written
+above. The RAM addresses 80DE–80F4 are inside 8000–9FFE, so the boot RAM test wipes them at
+every key-on as well.
 
 ---
 
