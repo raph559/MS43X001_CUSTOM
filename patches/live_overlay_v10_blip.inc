@@ -372,8 +372,8 @@ bt_go:
         MOVB    BLIP_PREV, RL4
         MOV     R4, #0
         MOVB    BLIP_RATE, RL4
-        MOVB    RL4, 0E2B5h             ; V10.2: the spark ramps from the angle in use (psk_blip)
-        MOVB    BLIP_SPK, RL4
+        MOVB    RL4, #0FFh              ; V10.2: the blip's first angle is whole, as V10.1's (the owner: "very
+        MOVB    BLIP_SPK, RL4           ; sharp"); only a return from the cap ramps (psk_blip)
         BSET    BLIP_USED
         BSET    0FDF8h.4                ; a blip uses up this lift's pops
         BSET    BLIP_ON                 ; last: the throttle store sees a blip only with its values in place

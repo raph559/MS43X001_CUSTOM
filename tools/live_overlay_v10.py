@@ -150,8 +150,9 @@ POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops windo
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
 POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current stab or gap
-BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding (V10.2);
-                                        ; shares POPS_PH, as no blip runs in a window and every window's start clears it
+BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding, FFh
+                                        ; until its first (V10.2); shares POPS_PH, as no blip runs in a window and every
+                                        ; window's start clears it
 BLIP_CL        EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
@@ -331,10 +332,11 @@ def prepare(image):
     # V10.2, the cap: above the blip's target the spark is 141 byte 7's angle (flashed -23.625 deg), so the air already
     # in the intake stops the climb instead of driving the rpm past the target (2026-11-07 log: +650 rpm at the peak).
     # The spark call arms each coil's charge for the angle before it, so an advance written while a coil charges cuts that
-    # charge by the advance's time (the 44 deg release at 2,624 rpm left cylinder 4 0.21 ms of 2.35, and the blip's start
-    # from the car file's -12.75 deg one cylinder 0.04 ms): an advance rises at most 807F / 4 steps of 0.375 deg a spark
-    # from the last angle the blip wrote, under 0.5 ms of a charge at any speed, as the stock overrun ramp (0A:D3DE) does
-    # 2.5 deg a spark; a retard, the cap, is whole at once.
+    # charge by the advance's time (the cap's 44 deg release at 2,624 rpm left cylinder 4 0.21 ms of 2.35, igcfb_5
+    # detected): after the cap, an advance rises at most 807F / 4 steps of 0.375 deg a spark from the last angle the blip
+    # wrote, under 0.5 ms of a charge at any speed, as the stock overrun ramp (0A:D3DE) does 2.5 deg a spark; a retard, the
+    # cap, is whole at once. A blip's start is whole (bt_go leaves FFh): the owner wants it "very sharp" (2026-11-08), as
+    # V10.1's, so its first firing may lose its charge (one cylinder, 0.04 ms from the car file's -12.75 deg).
     pops = _replace(pops, "psk_stock:\n        JMPS    0Bh, 05C84h\n",
                     "psk_stock:\n        JMPS    0Bh, 05C84h\n"
                     "psk_blip:\n        JNB     0FD2Ch.11, psk_stock\n        PUSH    0FF10h                  ; PSW\n"
