@@ -1,5 +1,10 @@
 # Live overlay — implementation spec
 
+> **2026-10-22:** the scope is replaced by
+> the source contract (more tables, A/B, safety
+> rules, emulator support). The addresses and conventions below stay the reference where that
+> design does not change them, except the free flash start: **0x4B544**, not 0x4B545.
+
 Everything another session needs to build the live-tuning overlay, with no re-derivation.
 Companion documents: `LIVE_OVERLAY.md` (the design), `TUNE_ANALYSIS.md` (which tables and why),
 `HANDOFF.md` (state), `REPORT.md` (toolchain and the emulator), `patches/README.md` (the built

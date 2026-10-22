@@ -1,5 +1,11 @@
 # Live-tuning RAM overlay — design for the car's MS43X001
 
+> **2026-10-22:** the scope is replaced by
+> the source contract. Two corrections to this
+> document: the VE maps are **not** the car's fuel map, because the car takes its load from the MAF
+> (0x70DF3 = 1) and the VE maps feed the air model; and free flash starts at **0x4B544**, not
+> 0x4B545.
+
 Status: **design, not built.** Nothing has been flashed, nothing written to the car, no code
 patched yet. All addresses below were read out of the car's own file
 `bins/CAR_current_43X001_SP95_STAGE1.bin` (SHA-256 `8cfe3124…c0717`).
