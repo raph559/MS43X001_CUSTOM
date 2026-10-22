@@ -287,3 +287,88 @@ checksum word only.
 - **Suites:** the emulator 1,932 of 1,934 before the gate fix (the two V1 quick-key-cycle failures, as always), and on
   the final bin every chunk that runs the V10 image (overlay 349, pops 319, watch 136, v10 166); the app Core 739/739,
   and UI 764/764 in chunks before the stab count, then its log, connection, Performance and V10 classes (141/141) after.
+
+## V10.2 (2026-11-08, after the second car test)
+
+The car log of 2026-11-07 (`ms43-20261107-220026.csv`, the fast-blip V10.1) showed a braking 3rd → 2nd blip peaking
+650 rpm above its target: the engine kept pulling on the air already in the intake, fired at the blip angle, for
+0.4 s after the throttle closed (owner: "the blip is clearly going too high"). The pops AFR was not what it said:
+the car file adds an AFR target's fuel in a straight line, 1 + (X − 128)/256, so V10.1's richest pops, shown as 7.4,
+was 1.5 × the fuel, a real AFR of about 9.8. The owner's decisions: "yes i approve the V10.2 design with the spark cap
+too", "Yes, one bin", "Yes, in V10.2" (the start fuel), "ok sounds good, lets do that" (every AFR real), "Yes, stock"
+(the injectors), and for the blip's start "i dont want the blip to feel soft, i want them to feel very sharp, like
+racecars, or like i would do it myself with double clutch". The design is
+the source contract, the plan
+the source contract.
+
+- **Identification.** V10's sources are edited in place again. The header word is `020Ah` (minor 2, V10.1's way). The
+  build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_2.bin` (SHA-256 `b4d9504a…81b1`), program identity
+  `42d01399…f4fd` (`ProgramIdentity.Ms43X001LiveOverlayV102`). The main pool's code now ends at `0C:E04A` (V10.1:
+  `0C:DF38`): `psk_blip` at `0C:DE56`, `pops_fuel` at `0C:DF6E`, `afr_real` at `0C:E020`. One new hook:
+  `0B:D4D4` (file `0x3D4D4`, the AFR display join, `MOVBZ R12, 91B8h`) jumps to `pops_fuel`.
+- **Defaults** (the switches still off): group 138 is `00 28 00 46 7D 9E 1E 14`, V10.1's with the pops AFR at 70 (a
+  real 7.0); group 141 is `01 01 01 00 15 28 0F 00`, its byte 7 (spare on V10.1, flashed 00) now the cap angle at 0
+  (−23.625°). Groups 139, 140 and 142 are V10.1's.
+- **The blip's spark cap** (141 byte 7, "Spark above the target", the blip angle's encoding 0.375·X − 23.625 °BTDC,
+  0..143, −23.625° to +30.0°). While a blip runs (`FD2C.11`), `psk_blip` fires this angle whenever `807F` is above
+  `BLIP_TGT`, and the blip angle (140 byte 7) at or below it, through the rise and the hold. A V10.1 bin's 00 reads as
+  −23.625°; at the blip angle the cap is off. The throttle's rules and the 150 ms lead are V10.1's.
+- **The ramp after the cap, and a sharp start.** The spark call (`0A:D424`) runs once per firing, 2 to 5 ms before the
+  next cylinder fires, whose charge is already timed from the angle before: an advance written there cuts that charge
+  by its time. In the emulator the first release from the cap (−23.625° to +20.25° at 2,624 rpm) left a coil 0.21 ms
+  of its 2.35 ms and the firmware detected `igcfb_5`. So after the cap an advance rises by at most `807F >> 2` angle
+  steps per decision from the last angle the blip wrote (`BLIP_SPK`), under 0.5 ms of charge at any speed; a retard
+  is whole at once. A blip's start is whole: `bt_go` leaves `BLIP_SPK` at `FFh`, so the first decision writes the
+  whole angle, as on V10.1, at V10.1's cost (one cylinder may lose its spark at the blip's first firing; after a fuel
+  cut it has no fuel yet).
+- **A real pops AFR** (138 byte 3, AFR × 10, 50..147, 5.0 to 14.7, default 70). It is in petrol AFR, so a λ on either
+  fuel (λ = A / 147). During a window `pops_afr` still forces the shared rich path (`91A0` = 2032); `pops_fuel`
+  recognises that pass and writes `91A0` = (147 − A) × 4096 / A (7,946 at 5.0), or the car file's own target made
+  real if that is richer. The logged target `91B9` becomes the real mixture, `91B8 × 4096 / (4096 + 91A0)`, at most
+  255. The add at `0C:AFB2` is signed and saturates at 32,767, which is enough.
+- **Every AFR real** (`FD9A.10`, any rich target on any pass). The shared path stores L = (X − 128) × 16 at `0B:D4BC`;
+  at the join `pops_fuel` first computes the stock display from L (`0D:194C`, as `0B:D4D8..D4E0` would), then makes
+  `91A0` = L × 4096 / (4096 − L), signed (`afr_real`): λ = (384 − X)/256 exactly, the XDF's AFR. The logged numbers
+  stay as today and are now true. At λ1 nothing changes; without a rich target the displaced instruction runs
+  (`pf_plain`). The car file's richest cells (shown 11.48) get 5.0 % more fuel, the byte's top (7.41) 32.7 %.
+- **The injector flow.** `c_inj_flow` (`0x70E14`, 16 bits little-endian, cm³/min) goes from 225 to 237, the X001
+  release's value; 225 came with an E85 edit. The fuel of every injection shrinks by 225/237 = 0.949; the dead time
+  stays. With every AFR real, the 14.7 cells get 5.1 % less fuel and the richest 0.3 % less, so the injectors never
+  open longer than on V10.1.
+- **The start fuel.** `ip_tipr_cst__tco` (`0x7DE64..0x7DE73`, the start's pre-injection over coolant) gets the stock
+  X001 bytes back: 14.4 ms at 90 °C instead of the car file's 23.0 (× 1.6 at every temperature).
+- **RAM.** No new bytes. `BLIP_SPK` shares `POPS_PH` (`9FA2h`): no blip runs in a pops window, and every window's
+  start clears it. `POPS_XSTOCK`, the car file's own target byte during a window, shares `BLIP_RATE` (`9FA7h`).
+- **The app.** The header's minor picks the catalogue and the rules (`OverlayV10.MapsFor(2)`, `LimitsFor`,
+  `ValidateCopy`): on a V10.2 ECU or bin, "Pops & Bangs" shows "AFR target (petrol)" from 5.0 to 14.7 and "Downshift
+  blip: gears and tap" shows "Spark above the target". A V10.1 or V10 ECU keeps its own fields and limits, and a
+  value outside that minor's limits is refused before anything is sent. The map, LC, NLS and RAL fields keep the XDF's
+  display, which on a V10.2 ECU is the real AFR.
+
+### V10.2's verification (2026-11-08, in the emulator)
+
+- **Direct CPU tests:** 538/538 on the final build (`BlipHookTests`, `BlipTests`, `OverlayV10Tests`, `PopsHookTests`,
+  `PopsRealAfrHookTests`, `PopsStabTests`, `PopsGateTests`): the cap at, above and below
+  the target and outside a blip; an advance rising a step a decision, a retard whole, a blip's first spark whole;
+  the pops enrichment and `91B9` for every A; every rich target made real (X 255, 184, 172, 112) and λ1 untouched;
+  `0x70E14` = `ED 00`; the bin differing from V10.1 only in the overlay, its defaults, the start table, the injector
+  flow and the checksums.
+- **Drives** (46/46: `V10DriveTests`, `PopsRealAfrDriveTests`, `StartFuelDriveTests`, `RealAfrDriveTests`): no new
+  fault on any blip or pops drive; every blip's first decision whole, at most its first firing losing its charge, the
+  cap and its return never; ti following the real AFR in the window's load at 14.7, 9.8, 7.0 and 5.0, and linear
+  through the stabs (the fuel factor at `0C:AFD0..AFDA` exact at 5.0, no saturation); every rich pass of the
+  full-load pull made real exactly; the warm idle's fuel × 0.9497 of V10.1's (225/237 = 0.9494); the start's priming
+  8.60 ms shorter.
+- **Against V10.1 fast blip, the switches off** (`build/compare-v101-v102`, seven drives): every software and output
+  check passes on warm-start, cold-start, idle, key-cycle, overrun and part-load; full-load fails only the injector
+  check past the limiter at 7,100 rpm, on both bins as from V9 on (V10.1 99 %, V10.2 98 %, the emulator's air model);
+  the faults are V10.1's on every drive, nothing stored. The behaviour differs as intended: the fuel and the priming.
+- **The app against the firmware** (`app/tools/OverlayV10Integration`, the production client at 125,000 baud, built
+  with `-p:Ms43LabRoot=<repo root>`): stabs, blip, fallback, rate, queues, log, log-plain and log-plain-off all pass,
+  with V10.1's windows, stabs and blips and nothing stored on seven. `queues`' own drive fails its checks as on V9,
+  V10 and V10.1: its idle line after the 3rd-gear pull spikes the fed shaft speed to about 20,600 rpm, the ECU loses
+  the crank and stores maf, crk and er_ad; at the pick-up V10.2 read 57 rpm and a saturated MAF, as V9's run did,
+  where V10.1 read 0. The plain `0B B0` poll gave 15.7 rows/s (V9 to V10.1: 16.4) and sub 11 alone 16.39 (16.67),
+  while the app's full log kept 356 rows against V10.1's 349.
+- **App suites:** Core 755/755; UI `V10GroupsTests` 24/24.
+- **Not run:** the emulator's V10-image chunks and the full UI suite.
