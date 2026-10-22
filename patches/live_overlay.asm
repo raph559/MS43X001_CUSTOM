@@ -129,8 +129,23 @@ subst:
 to_reader:
         JMPS    0Dh, 029Ah
 
-; ---- housekeeping: queue-1 task 09h's entry, every 10 ms ----
+; ---- housekeeping: queue-1 task 09h's entry, every 10 ms at every engine state (D1). With the magic present, when the
+; engine is not running or the app has been silent for 3 s, every On table goes to Ready, and stays there until the app
+; switches it on again (D7). Then the task itself, with R3 and R4 as the scheduler left them. ----
 hk:
+        MOV     [-R0], R3
+        MOV     [-R0], R4
+        EXTP    #10h, #1
+        MOV     R4, W_MAGIC
+        CMP     R4, #MAGIC
+        JMPR    NZ, hk_task
+        CALLA   UC, off_due
+        CMP     R4, #0
+        JMPR    Z, hk_task
+        CALLA   UC, all_off
+hk_task:
+        MOV     R4, [R0+]
+        MOV     R3, [R0+]
         JMPS    0Dh, 080DEh
 
 ; ---- the DS2 0x6D handler: called by the dispatcher (09:FB76) with the request at F6CD ----
@@ -157,6 +172,11 @@ h_zero:
         EXTP    #10h, #1
         MOV     W_MAGIC, R4
 h_ready:
+        CALLA   UC, off_due             ; a frame after a stop or a silence finds everything off first
+        CMP     R4, #0
+        JMPR    Z, h_stamp
+        CALLA   UC, all_off
+h_stamp:
         MOV     R4, F_TICKS             ; the keep-alive
         EXTP    #10h, #1
         MOV     W_SEEN, R4
@@ -512,6 +532,40 @@ vf_leaner:
         MOV     R4, #0Ah
         RET
         ENDIF
+
+; ---- off_due: R4 = 1 when everything must be off: the engine not running, or 300 ticks since the last 0x6D frame;
+; else 0. Uses R4 ----
+off_due:
+        CALLA   UC, running
+        CMP     R4, #0
+        JMPR    Z, od_yes
+        MOV     R4, F_TICKS
+        EXTP    #10h, #1
+        SUB     R4, W_SEEN
+        CMP     R4, #SILENCE
+        JMPR    UGE, od_yes
+        MOV     R4, #0
+        RET
+od_yes:
+        MOV     R4, #1
+        RET
+
+; ---- all_off: every On table to Ready, its copy kept; uses R3, R4 ----
+all_off:
+        MOV     R3, #W_DIR
+ao_loop:
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_ON
+        JMPR    NZ, ao_next
+        MOV     R4, #ST_READY
+        EXTP    #10h, #1
+        MOV     [R3], R4
+ao_next:
+        ADD     R3, #6
+        CMP     R3, #(W_DIR + 6*N_TABLES)
+        JMPR    ULT, ao_loop
+        RET
 
 ; ---- entry_addr: R3 = the entry of table R2 (9D08h + 6 x R2); uses R3 ----
 entry_addr:
