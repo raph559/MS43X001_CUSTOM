@@ -27,6 +27,7 @@ W_SEEN          EQU     9D02h           ; E2A6 at the last 0x6D frame
 W_DIR           EQU     9D08h           ; 5 entries of 6 bytes: state, 0, copy offset (word), edit sum (word)
 W_COPY          EQU     9D2Ch           ; the copy area: 692 bytes, to 9FDF (9D04-9D07 and 9D26-9D2B stay zero)
 COPY_BYTES      EQU     692
+MOST_WRITE      EQU     120             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
 MAGIC           EQU     0C0DEh
 SILENCE         EQU     300             ; 3 s of 10 ms ticks
 ST_FREE         EQU     0
@@ -170,10 +171,16 @@ h_ready:
         JMPA    UC, sub_status
 h_load:
         CMPB    RL5, #1
-        JMPR    NZ, h_on
+        JMPR    NZ, h_write
         CMPB    RL4, #8
         JMPR    NZ, bad_len
         JMPA    UC, sub_load
+h_write:
+        CMPB    RL5, #2
+        JMPR    NZ, h_on
+        CMPB    RL4, #8
+        JMPR    ULT, bad_len            ; 8 carries no data: a range error, below
+        JMPA    UC, sub_write
 h_on:
         CMPB    RL5, #3
         JMPR    NZ, h_off
@@ -306,6 +313,52 @@ ld_copy:
         MOV     [R3], R4
         JMPA    UC, ack
 
+; ---- write i, at, data: into a loaded or ready table's copy from its byte at; the table becomes Loaded ----
+sub_write:
+        MOVBZ   R2, REQ_ARG
+        CMP     R2, #(N_TABLES - 1)
+        JMPA    UGT, bad_table
+        MOVBZ   R7, REQ_LEN
+        SUB     R7, #8                  ; R7: the data bytes
+        JMPA    Z, bad_range
+        CMP     R7, #MOST_WRITE
+        JMPA    UGT, bad_range
+        MOVBZ   R6, REQ_ARG+1
+        SHL     R6, #8
+        MOVBZ   R4, REQ_ARG+2
+        OR      R6, R4                  ; R6: at
+        CALLA   UC, table_info          ; R10: the table's bytes
+        CMP     R6, R10
+        JMPA    UGT, bad_range          ; first, so the end below cannot wrap
+        MOV     R8, R6
+        ADD     R8, R7
+        CMP     R8, R10
+        JMPA    UGT, bad_range          ; the write runs past the table
+        CALLA   UC, entry_addr
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_FREE
+        JMPA    Z, refuse_free
+        CMPB    RL4, #ST_ON
+        JMPA    Z, refuse_on            ; never into a copy the reader may be reading
+        EXTP    #10h, #1
+        MOV     R13, [R3+2]
+        ADD     R13, #W_COPY
+        ADD     R13, R6
+        MOV     R12, #(REQ_ARG + 3)     ; the data: F6D4 on
+wr_copy:
+        MOVB    RL4, [R12]
+        EXTP    #10h, #1
+        MOVB    [R13], RL4
+        ADD     R12, #1
+        ADD     R13, #1
+        SUB     R7, #1
+        JMPR    NZ, wr_copy
+        MOV     R4, #ST_LOADED          ; unconfirmed until its next on
+        EXTP    #10h, #1
+        MOV     [R3], R4
+        JMPA    UC, ack
+
 ; ---- on i, sum: a loaded table whose copy has this edit sum (and keeps the rules) switches on ----
 sub_on:
         MOVBZ   R2, REQ_ARG
@@ -404,13 +457,16 @@ fr_next:
         MOVB    REP_LEN, RL4
         JMPA    UC, h_exit
 
-; ---- verify: R2 = the table, R3 = its entry, R6 = the edit sum it must have. R4 = 0, or the B1 reason. Uses R5,
-; R7, R10-R14. The edit sum is the copy's bytes less the flashed table's, modulo 2^16 (D9). ----
+; ---- verify: R2 = the table, R3 = its entry, R6 = the edit sum it must have. R4 = 0, or the B1 reason: 09h the sum,
+; 0Ah a lambda cell below its flashed value while RICHER_ONLY holds. Uses R5, R7-R14. The edit sum is the copy's bytes
+; less the flashed table's, modulo 2^16 (D9). ----
 verify:
         CALLA   UC, table_info
         EXTP    #10h, #1
         MOV     R13, [R3+2]
         ADD     R13, #W_COPY
+        MOV     R8, R12                 ; R8, R9: the flashed table and the copy, for the rule
+        MOV     R9, R13
         MOV     R4, #0
         MOV     R5, R10
 vf_loop:
@@ -428,11 +484,34 @@ vf_loop:
         JMPR    NZ, vf_loop
         CMP     R4, R6
         JMPR    NZ, vf_sum
+        IF      RICHER_ONLY
+        JNB     R14.0, vf_ok            ; the lambda rule's table only
+        MOV     R12, R8                 ; lambda = 1.5 - X/256: a cell below its flashed value is leaner
+        MOV     R13, R9
+        MOV     R5, R10
+vf_lambda:
+        EXTP    #10h, #1
+        MOVB    RL7, [R13]
+        EXTP    R11, #1
+        MOVB    RH7, [R12]
+        CMPB    RL7, RH7
+        JMPR    ULT, vf_leaner
+        ADD     R12, #1
+        ADD     R13, #1
+        SUB     R5, #1
+        JMPR    NZ, vf_lambda
+        ENDIF
+vf_ok:
         MOV     R4, #0
         RET
 vf_sum:
         MOV     R4, #9
         RET
+        IF      RICHER_ONLY
+vf_leaner:
+        MOV     R4, #0Ah
+        RET
+        ENDIF
 
 ; ---- entry_addr: R3 = the entry of table R2 (9D08h + 6 x R2); uses R3 ----
 entry_addr:
