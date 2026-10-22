@@ -5,7 +5,7 @@
 Steps:
   1. Assemble patches/live_overlay.asm with AS in WSL (ms43_patch.assemble). Every assembler warning but "page might not
      be addressable" (AS gives it on each EXTP/EXTS access, with correct bytes) refuses the build.
-  2. Refuse any record outside the write list: the hooks (eight table sites, the K read, the 0x6D slot, queue-1 task 09h's
+  2. Refuse any record outside the write list: the hooks (the five tables' seven sites, the 0x6D slot, queue-1 task 09h's
      entry, the program CRC range's end; 4 bytes each) and the overlay's block from 0x4B544 up to the programming
      signature at 0x4FFE6. The boot block and the validity tags are never written.
   3. Apply the records to a copy of the car file (checked against its SHA-256), fix the five checksums, verify them.
@@ -36,8 +36,7 @@ HOOKS = {
     0x2C650: "ip_iga_ron98_pl", 0x2C3A4: "ip_iga_ron98_is", 0x3D40A: "ip_af_target_ron98",
     0x33B48: "ip_cam_sp_ron98_in_pl (FD9C.3)", 0x33BA2: "ip_cam_sp_ron98_in_pl",
     0x33B74: "ip_cam_sp_ron98_ex_pl (FD9C.3)", 0x33BEA: "ip_cam_sp_ron98_ex_pl",
-    0x1B12A: "ip_tps_sp_pvs", 0x4AB28: "the K read (MOV R14, 91B6h)", 0x1FC8A: "the DS2 0x6D slot",
-    0x6E3E2: "queue-1 task 09h", 0x6FE00: "the program CRC range 4's end",
+    0x1FC8A: "the DS2 0x6D slot", 0x6E3E2: "queue-1 task 09h", 0x6FE00: "the program CRC range 4's end",
 }
 BLOCK = (0x4B544, 0x4FFE6)
 NEVER = [(0x00000, 0x08000), (0x4FFE6, 0x50000), (0x6FFF0, 0x70000), (0x7FFF0, 0x80000)]
