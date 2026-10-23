@@ -302,17 +302,25 @@ the source contract, the plan
 the source contract.
 
 - **Identification.** V10's sources are edited in place again. The header word is `020Ah` (minor 2, V10.1's way). The
-  build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_2.bin` (SHA-256 `b4d9504a…81b1`), program identity
-  `42d01399…f4fd` (`ProgramIdentity.Ms43X001LiveOverlayV102`). The main pool's code now ends at `0C:E04A` (V10.1:
-  `0C:DF38`): `psk_blip` at `0C:DE56`, `pops_fuel` at `0C:DF6E`, `afr_real` at `0C:E020`. One new hook:
-  `0B:D4D4` (file `0x3D4D4`, the AFR display join, `MOVBZ R12, 91B8h`) jumps to `pops_fuel`.
+  build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_2.bin` (SHA-256 `a95b2c91…c1f7`), program identity
+  `b8bafce5…7173` (`ProgramIdentity.Ms43X001LiveOverlayV102`). The first build, sent before the review
+  (`b4d9504a…81b1`, identity `42d01399…f4fd`), stays known as "V10.2 (first build)"; it differs only in the cap
+  rule below. The main pool's code now ends at `0C:E056` (V10.1: `0C:DF38`): `psk_blip` at `0C:DE56`, `pops_fuel`
+  at `0C:DF7A`, `afr_real` at `0C:E02C`. One new hook: `0B:D4D4` (file `0x3D4D4`, the AFR display join,
+  `MOVBZ R12, 91B8h`) jumps to `pops_fuel`.
 - **Defaults** (the switches still off): group 138 is `00 28 00 46 7D 9E 1E 14`, V10.1's with the pops AFR at 70 (a
   real 7.0); group 141 is `01 01 01 00 15 28 0F 00`, its byte 7 (spare on V10.1, flashed 00) now the cap angle at 0
   (−23.625°). Groups 139, 140 and 142 are V10.1's.
 - **The blip's spark cap** (141 byte 7, "Spark above the target", the blip angle's encoding 0.375·X − 23.625 °BTDC,
   0..143, −23.625° to +30.0°). While a blip runs (`FD2C.11`), `psk_blip` fires this angle whenever `807F` is above
   `BLIP_TGT`, and the blip angle (140 byte 7) at or below it, through the rise and the hold. A V10.1 bin's 00 reads as
-  −23.625°; at the blip angle the cap is off. The throttle's rules and the 150 ms lead are V10.1's.
+  −23.625°. Above the target the spark is the lower of the cap and the blip angle, so at or above the blip angle the
+  cap is off (the review's fix: the first build fired a higher cap, adding advance). The throttle's rules and the
+  150 ms lead are V10.1's.
+- **The hand-overs.** When the blip ends, the stock overrun angle returns whole: from the cap at most +13.1° (the car
+  file's −10.5° hot from 2,400 rpm), under 1 ms of a 2.35 ms charge. When the pedal goes down during the cap, the stock
+  code starts from its own overrun angle and ramps to the part-load angle: in `blip-braking-pedal` (2,700 rpm) it
+  took over at −14.6°, 9° from the cap, and rose about 0.75° a firing, every charge 2.28 to 2.38 ms.
 - **The ramp after the cap, and a sharp start.** The spark call (`0A:D424`) runs once per firing, 2 to 5 ms before the
   next cylinder fires, whose charge is already timed from the angle before: an advance written there cuts that charge
   by its time. In the emulator the first release from the cap (−23.625° to +20.25° at 2,624 rpm) left a coil 0.21 ms
@@ -347,15 +355,16 @@ the source contract.
 
 ### V10.2's verification (2026-11-08, in the emulator)
 
-- **Direct CPU tests:** 538/538 on the final build (`BlipHookTests`, `BlipTests`, `OverlayV10Tests`, `PopsHookTests`,
-  `PopsRealAfrHookTests`, `PopsStabTests`, `PopsGateTests`): the cap at, above and below
-  the target and outside a blip; an advance rising a step a decision, a retard whole, a blip's first spark whole;
+- **Direct CPU tests:** 540/540 on the reviewed build (`BlipHookTests`, `BlipTests`, `OverlayV10Tests`,
+  `PopsHookTests`, `PopsRealAfrHookTests`, `PopsStabTests`, `PopsGateTests`): the cap at, above and below the target
+  and outside a blip, and off at or above the blip angle; an advance rising a step a decision, a retard whole, a
+  blip's first spark whole;
   the pops enrichment and `91B9` for every A; every rich target made real (X 255, 184, 172, 112) and λ1 untouched;
   `0x70E14` = `ED 00`; the bin differing from V10.1 only in the overlay, its defaults, the start table, the injector
   flow and the checksums.
-- **Drives** (46/46: `V10DriveTests`, `PopsRealAfrDriveTests`, `StartFuelDriveTests`, `RealAfrDriveTests`): no new
-  fault on any blip or pops drive; every blip's first decision whole, at most its first firing losing its charge, the
-  cap and its return never; ti following the real AFR in the window's load at 14.7, 9.8, 7.0 and 5.0, and linear
+- **Drives** (49/49 on the reviewed build: `V10DriveTests`, `PopsRealAfrDriveTests`, `StartFuelDriveTests`,
+  `RealAfrDriveTests`, `BlipPedalDriveTests`): no new fault on any blip or pops drive; every blip's first decision
+  whole, at most its first firing losing its charge, the cap, its return and a pedal press during it never; ti following the real AFR in the window's load at 14.7, 9.8, 7.0 and 5.0, and linear
   through the stabs (the fuel factor at `0C:AFD0..AFDA` exact at 5.0, no saturation); every rich pass of the
   full-load pull made real exactly; the warm idle's fuel × 0.9497 of V10.1's (225/237 = 0.9494); the start's priming
   8.60 ms shorter.
@@ -369,6 +378,9 @@ the source contract.
   V10 and V10.1: its idle line after the 3rd-gear pull spikes the fed shaft speed to about 20,600 rpm, the ECU loses
   the crank and stores maf, crk and er_ad; at the pick-up V10.2 read 57 rpm and a saturated MAF, as V9's run did,
   where V10.1 read 0. The plain `0B B0` poll gave 15.7 rows/s (V9 to V10.1: 16.4) and sub 11 alone 16.39 (16.67),
-  while the app's full log kept 356 rows against V10.1's 349.
+  while the app's full log kept 356 rows against V10.1's 349. The reviewed build gives the same results on all eight.
 - **App suites:** Core 755/755; UI `V10GroupsTests` 24/24.
+- **Review** (one fresh reviewer over the whole branch): no critical finding; the first build judged safe to drive.
+  Of two important findings, the pedal press during the cap was refuted in the emulator (above), and the cap above
+  the blip angle was fixed. Five minor findings are deferred.
 - **Not run:** the emulator's V10-image chunks and the full UI suite.
