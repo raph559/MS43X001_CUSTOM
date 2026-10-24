@@ -6,9 +6,8 @@
 > warning but "page might not be addressable" and any record outside its write list, applies it to
 > a copy of the car file, fixes and verifies the five checksums, and writes
 > `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY.bin` (not committed) and the committed test fixture
-> `sim/tests/Ms43Sim.Tests/fixtures/live_overlay.hex`. Its contract (DS2 command 0x6D) is in the
-> plan, the source contract, and what was proven
-> in the emulator, the rulings and the open items in the source contract.
+> `sim/tests/Ms43Sim.Tests/fixtures/live_overlay.hex`. Its contract as built (DS2 command 0x6D), what
+> was proven in the emulator, the rulings and the open items are in the source contract.
 > It is proven in the emulator only: **nothing built from it is flashed or handed over without the
 > owner's explicit go-ahead.**
 >
