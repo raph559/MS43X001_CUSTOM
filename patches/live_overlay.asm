@@ -209,10 +209,35 @@ h_on:
         JMPA    UC, sub_on
 h_off:
         CMPB    RL5, #4
-        JMPR    NZ, bad_sub
+        JMPR    NZ, h_allon
         CMPB    RL4, #6
         JMPR    NZ, bad_len
         JMPA    UC, sub_off
+h_allon:
+        CMPB    RL5, #5
+        JMPR    NZ, h_alloff
+        CMPB    RL4, #5
+        JMPR    NZ, bad_len
+        JMPA    UC, sub_allon
+h_alloff:
+        CMPB    RL5, #6
+        JMPR    NZ, h_free
+        CMPB    RL4, #5
+        JMPR    NZ, bad_len
+        CALLA   UC, all_off
+        JMPR    UC, ack
+h_free:
+        CMPB    RL5, #7
+        JMPR    NZ, h_revert
+        CMPB    RL4, #6
+        JMPR    NZ, bad_len
+        JMPA    UC, sub_free
+h_revert:
+        CMPB    RL5, #8
+        JMPR    NZ, bad_sub
+        CMPB    RL4, #5
+        JMPR    NZ, bad_len
+        JMPA    UC, sub_revert
 
 ; ---- the replies: refusals carry the reason in RL4; every path leaves through h_exit ----
 bad_len:
@@ -421,6 +446,68 @@ sub_off:
         MOV     [R3], R4
         JMPA    UC, ack
 
+; ---- all on: every Ready table verified again with its stored sum and the rules, then all of them On together; a Loaded
+; table stays off. One that fails refuses the request, and nothing switches on ----
+sub_allon:
+        CALLA   UC, running
+        CMP     R4, #0
+        JMPA    Z, refuse_stopped
+        MOV     R2, #0
+an_check:
+        CALLA   UC, entry_addr
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_READY
+        JMPR    NZ, an_cnext
+        EXTP    #10h, #1
+        MOV     R6, [R3+4]              ; the sum stored at its last on
+        CALLA   UC, verify
+        CMP     R4, #0
+        JMPA    NZ, refuse_b1
+an_cnext:
+        ADD     R2, #1
+        CMP     R2, #N_TABLES
+        JMPR    ULT, an_check
+        MOV     R2, #0
+an_on:
+        CALLA   UC, entry_addr
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_READY
+        JMPR    NZ, an_onext
+        MOV     R4, #ST_ON
+        EXTP    #10h, #1
+        MOV     [R3], R4
+an_onext:
+        ADD     R2, #1
+        CMP     R2, #N_TABLES
+        JMPR    ULT, an_on
+        JMPA    UC, ack
+
+; ---- free i: a table not On back to Free ----
+sub_free:
+        MOVBZ   R2, REQ_ARG
+        CMP     R2, #(N_TABLES - 1)
+        JMPA    UGT, bad_table
+        CALLA   UC, entry_addr
+        EXTP    #10h, #1
+        MOVB    RL4, [R3]
+        CMPB    RL4, #ST_ON
+        JMPA    Z, refuse_on
+        CALLA   UC, free_entry
+        JMPA    UC, ack
+
+; ---- revert: every table Free, On ones included ----
+sub_revert:
+        MOV     R2, #0
+rv_loop:
+        CALLA   UC, entry_addr
+        CALLA   UC, free_entry
+        ADD     R2, #1
+        CMP     R2, #N_TABLES
+        JMPR    ULT, rv_loop
+        JMPA    UC, ack
+
 ; ---- status: the 38-byte payload of the contract ----
 sub_status:
         CALLA   UC, running
@@ -565,6 +652,15 @@ ao_next:
         ADD     R3, #6
         CMP     R3, #(W_DIR + 6*N_TABLES)
         JMPR    ULT, ao_loop
+        RET
+
+; ---- free_entry: the entry at R3 to Free, its offset and sum 0; the state first, so no stub substitutes after it. Uses R4 ----
+free_entry:
+        MOV     R4, #0
+        EXTP    #10h, #3
+        MOV     [R3], R4
+        MOV     [R3+2], R4
+        MOV     [R3+4], R4
         RET
 
 ; ---- entry_addr: R3 = the entry of table R2 (9D08h + 6 x R2); uses R3 ----
