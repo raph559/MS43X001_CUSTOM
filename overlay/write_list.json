@@ -1,0 +1,257 @@
+[
+ {
+  "offset": "0x10280",
+  "name": "ip_iga_optm_ron98__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x10290",
+  "name": "ip_iga_optm_e85__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x11B92",
+  "name": "ip_tq_max_mon2",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x11BCA",
+  "name": "ip_tq_max_mon2",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x11C00",
+  "name": "ip_tq_loss_mon2",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x11CFE",
+  "name": "ip_iga_ref_mon2",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x11DF2",
+  "name": "ip_tqi_ref_mon2",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x11E4C",
+  "name": "ip_tqi_dif_max_mon2",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x170D2",
+  "name": "ip_temp_sp_tco__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x17110",
+  "name": "ip_temp_sp_toil__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x18B0E",
+  "name": "ip_temp_fac_wall_up__tes__tam",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x18B1E",
+  "name": "ip_temp_fac_wall_down__tes__tam",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x18B2E",
+  "name": "ip_temp_fac_ex_up__tes__tam",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x18B3E",
+  "name": "ip_temp_fac_ex_down__tes__tam",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x1B018",
+  "name": "ip_tps_sp_pvs_add_low_n__n_dif__",
+  "original": "DA0DA609"
+ },
+ {
+  "offset": "0x1B12A",
+  "name": "ip_tps_sp_pvs__pvs__n",
+  "original": "DA0D6801"
+ },
+ {
+  "offset": "0x1B138",
+  "name": "throttle store",
+  "original": "F6F4A486"
+ },
+ {
+  "offset": "0x1D7C8",
+  "name": "ip_iga_aj_ron98__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x1D7D6",
+  "name": "ip_iga_aj_ron91__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x1E876",
+  "name": "ip_t_vls_cycnr_afr_max__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x1E962",
+  "name": "ip_t_vls_cycnr_afl_max__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x1EC8E",
+  "name": "ip_t_vls_cyc_afl_max__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x1ECC0",
+  "name": "ip_t_vls_cyc_afr_max__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x1FC8A",
+  "name": "DS2 6D",
+  "original": "DA09B6FF"
+ },
+ {
+  "offset": "0x29F9C",
+  "name": "ip_temp_sub_ecf_ini__tco__tam",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2A3AC",
+  "name": "cut mode",
+  "original": "F3F81E13"
+ },
+ {
+  "offset": "0x2A7BC",
+  "name": "overrun cut gate",
+  "original": "8A1704D08A180220"
+ },
+ {
+  "offset": "0x2AAA0",
+  "name": "in-cut re-entry check",
+  "original": "2A244D2B"
+ },
+ {
+  "offset": "0x2AF00",
+  "name": "ip_cam_sp_add_in_ch_2_is_at__tco_st__km_ctr",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2AF14",
+  "name": "ip_cam_sp_add_ex_ch_2_is_at__tco_st__km_ctr",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2AF2A",
+  "name": "ip_cam_sp_add_in_ch_2_is_mt__tco_st__km_ctr",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2AF3E",
+  "name": "ip_cam_sp_add_ex_ch_2_is_mt__tco_st__km_ctr",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2AF52",
+  "name": "ip_cam_sp_add_cat_pl_ex__tco_st__km_ctr",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2C3A4",
+  "name": "ip_iga_ron98_is__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2C3B4",
+  "name": "ip_iga_e85_is__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2C650",
+  "name": "ip_iga_ron98_pl__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2C65E",
+  "name": "ip_iga_ron91_pl__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2C684",
+  "name": "ip_iga_e85_pl__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2C6C2",
+  "name": "lc_ign",
+  "original": "C2FC3013C2FD3113"
+ },
+ {
+  "offset": "0x2C6CC",
+  "name": "nls_ign",
+  "original": "C2FC3813C2FD3913"
+ },
+ {
+  "offset": "0x2C6D6",
+  "name": "ral_ign",
+  "original": "C2FC3F13C2FD4013"
+ },
+ {
+  "offset": "0x2D424",
+  "name": "spark call",
+  "original": "DA0B845C"
+ },
+ {
+  "offset": "0x2D4CE",
+  "name": "ip_iga_maf_n_is__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2D508",
+  "name": "ip_iga_maf_n_toil_is__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2D542",
+  "name": "ip_iga_maf_n_knk_diag__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x2D84E",
+  "name": "ip_t_puc_deacc_2__n__maf_mmv",
+  "original": "DA0D9A04"
+ },
+ {
+  "offset": "0x2D862",
+  "name": "ip_t_puc_deacc_3__n__maf_mmv",
+  "original": "DA0D9A04"
+ },
+ {
+  "offset": "0x2D876",
+  "name": "ip_t_puc_deacc_4__n__maf_mmv",
+  "original": "DA0D9A04"
+ },
+ {
+  "offset": "0x2D88A",
+  "name": "ip_t_puc_deacc_5__n__maf_mmv",
+  "original": "DA0D9A04"
+ },
+ {
+  "offset": "0x2D89E",
+  "name": "ip_t_puc_deacc_1__n__maf_mmv",
+  "original": "DA0D9A04"
+ },
+ {
+  "offset": "0x2FEF0",
+  "name": "ip_n_vim_tia__tia",
+  "original": "DA0D2A02"
+ }
+]
