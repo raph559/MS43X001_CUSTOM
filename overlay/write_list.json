@@ -253,5 +253,220 @@
   "offset": "0x2FEF0",
   "name": "ip_n_vim_tia__tia",
   "original": "DA0D2A02"
+ },
+ {
+  "offset": "0x310BC",
+  "name": "ip_fac_pvs_isa__pvs_cor_rpl__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x331DC",
+  "name": "ip_ivvthpwm__tmag__vb",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33224",
+  "name": "ip_ivvthpwm__tmag__vb",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x339D4",
+  "name": "ip_cam_sp_ron98_in_is__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x339E4",
+  "name": "ip_cam_sp_e85_in_is__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33A00",
+  "name": "ip_cam_sp_ron98_ex_is__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33A10",
+  "name": "ip_cam_sp_e85_ex_is__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33B48",
+  "name": "ip_cam_sp_ron98_in_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33B58",
+  "name": "ip_cam_sp_e85_in_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33B74",
+  "name": "ip_cam_sp_ron98_ex_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33B84",
+  "name": "ip_cam_sp_e85_ex_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33BA2",
+  "name": "ip_cam_sp_ron98_in_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33BB2",
+  "name": "ip_cam_sp_e85_in_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33BEA",
+  "name": "ip_cam_sp_ron98_ex_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x33BFA",
+  "name": "ip_cam_sp_e85_ex_pl__n__maf_ivvt",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x348D4",
+  "name": "ip_ti_vo_wup__tco__vo",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x35D1E",
+  "name": "ip_maf_min_knk_ron__n__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x35D2E",
+  "name": "ip_maf_min_knk__n__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x35DE2",
+  "name": "ip_iga_knk_diag_ron__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x35DFE",
+  "name": "ip_iga_knk_diag__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x3CF24",
+  "name": "ip_pvs_dif_cr_neg__pvs_max__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x3CF44",
+  "name": "ip_pvs_dif_neg_fac__pvs_max__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x3D3B2",
+  "name": "pedal-released skip",
+  "original": "9A220230"
+ },
+ {
+  "offset": "0x3D40A",
+  "name": "ip_af_target_ron98__maf__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x3D41A",
+  "name": "ip_af_target_e85__maf__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x3D434",
+  "name": "AFR branch",
+  "original": "8A7C0B20"
+ },
+ {
+  "offset": "0x3D43A",
+  "name": "lc_afr",
+  "original": "C2FC3213C2FD3313"
+ },
+ {
+  "offset": "0x3D444",
+  "name": "nls_afr",
+  "original": "C2FC3A13C2FD3B13"
+ },
+ {
+  "offset": "0x3D44E",
+  "name": "ral_afr",
+  "original": "C2FC4113C2FD4213"
+ },
+ {
+  "offset": "0x3D4D4",
+  "name": "AFR display join (V10.2)",
+  "original": "C2FCB891"
+ },
+ {
+  "offset": "0x3FCF2",
+  "name": "lc_config",
+  "original": "F3F82C13"
+ },
+ {
+  "offset": "0x3FD16",
+  "name": "lc_pedal_enter",
+  "original": "43F82E13"
+ },
+ {
+  "offset": "0x3FD24",
+  "name": "lc_speed",
+  "original": "43FA2D13"
+ },
+ {
+  "offset": "0x3FD2E",
+  "name": "lc_pedal_exit",
+  "original": "43F82E13"
+ },
+ {
+  "offset": "0x3FD44",
+  "name": "nls_config",
+  "original": "F3F83413"
+ },
+ {
+  "offset": "0x3FD62",
+  "name": "nls_speed",
+  "original": "43FA3513"
+ },
+ {
+  "offset": "0x3FD6C",
+  "name": "nls_pedal_enter",
+  "original": "43F83613"
+ },
+ {
+  "offset": "0x3FD76",
+  "name": "nls_rpm",
+  "original": "C2FD3713"
+ },
+ {
+  "offset": "0x3FD8E",
+  "name": "nls_pedal_exit",
+  "original": "43F83613"
+ },
+ {
+  "offset": "0x3FDA4",
+  "name": "ral_config",
+  "original": "F3F83C13"
+ },
+ {
+  "offset": "0x3FDBE",
+  "name": "ral_pedal_enter",
+  "original": "43F83D13"
+ },
+ {
+  "offset": "0x3FDC8",
+  "name": "ral_rpm",
+  "original": "C2FD3E13"
+ },
+ {
+  "offset": "0x3FDE8",
+  "name": "ral_pedal_exit",
+  "original": "43F83D13"
  }
 ]
