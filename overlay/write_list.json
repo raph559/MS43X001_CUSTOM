@@ -468,5 +468,235 @@
   "offset": "0x3FDE8",
   "name": "ral_pedal_exit",
   "original": "43F83D13"
+ },
+ {
+  "offset": "0x434BC",
+  "name": "ip_ti_tco_sawup__tco__km_ctr",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x434CC",
+  "name": "ip_ti_tco_sawup_is__tco__km_ctr",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x436BE",
+  "name": "ip_isapwm__tco",
+  "original": "DA0D2A02"
+ },
+ {
+  "offset": "0x4372E",
+  "name": "ip_n_sp_is__tco",
+  "original": "DA0D2A02"
+ },
+ {
+  "offset": "0x4374E",
+  "name": "ip_acin_n_sp_is__tco",
+  "original": "DA0D2A02"
+ },
+ {
+  "offset": "0x43A24",
+  "name": "ip_fac_ron_ad_max__tia__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43A82",
+  "name": "ip_fac_tia_tco_is__tco__tia",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43AB2",
+  "name": "ip_fac_toil_facron__toil__facron",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43AE2",
+  "name": "ip_fac_tia_tco__tco__tia",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43B12",
+  "name": "ip_fac_knk_diag__tia__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43B72",
+  "name": "ip_fac_iga_tra__tia__fac_ron",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43C1C",
+  "name": "ip_tmag__toil__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43C4C",
+  "name": "ip_fac_is_ivvt__tco__tco_st",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x43C60",
+  "name": "ip_fac_pl_ivvt__tco__tco_st",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44C34",
+  "name": "ip_ti_cop_nr_1_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44C42",
+  "name": "ip_ti_cop_nr_2_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44C6A",
+  "name": "ip_ti_cop_nr_2_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44C78",
+  "name": "ip_ti_cop_nr_3_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44CA0",
+  "name": "ip_ti_cop_nr_3_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44CAE",
+  "name": "ip_ti_cop_nr_4_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44CD6",
+  "name": "ip_ti_cop_nr_4_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44CE4",
+  "name": "ip_ti_cop_nr_5_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44D0C",
+  "name": "ip_ti_cop_nr_5_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44D46",
+  "name": "ip_ti_cop_nr_1_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44D54",
+  "name": "ip_ti_cop_nr_2_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44D7C",
+  "name": "ip_ti_cop_nr_2_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44D8A",
+  "name": "ip_ti_cop_nr_3_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44DB2",
+  "name": "ip_ti_cop_nr_3_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44DC0",
+  "name": "ip_ti_cop_nr_4_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44DE8",
+  "name": "ip_ti_cop_nr_4_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44DF6",
+  "name": "ip_ti_cop_nr_5_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44E1E",
+  "name": "ip_ti_cop_nr_5_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x44E40",
+  "name": "ip_ti_add_cop_step_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4517A",
+  "name": "ip_maf_min_cop_ron__n__iga_dif",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4519A",
+  "name": "ip_maf_min_cop__n__iga_dif",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4528A",
+  "name": "ip_maf_min_cop_ron__n__iga_dif",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x452AA",
+  "name": "ip_maf_min_cop__n__iga_dif",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x454E0",
+  "name": "ip_ti_tco_pos_wf__n__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x454F0",
+  "name": "ip_ti_tco_neg_wf__n__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4552A",
+  "name": "ip_ti_tco_neg_fast_wf__n__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4553A",
+  "name": "ip_ti_tco_pos_fast_wf__n__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4583A",
+  "name": "ip_ti_fac_fast_wf__maf__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4586A",
+  "name": "ip_ti_fac_neg_fast_wf__maf__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x458A6",
+  "name": "ip_ti_fac_slow_wf__maf__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x458D6",
+  "name": "ip_ti_fac_neg_slow_wf__maf__n",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x49C38",
+  "name": "ip_temp_sub_ecf_ini__tco__tam",
+  "original": "DA0D9A02"
  }
 ]
