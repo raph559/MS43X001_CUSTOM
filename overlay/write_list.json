@@ -698,5 +698,385 @@
   "offset": "0x49C38",
   "name": "ip_temp_sub_ecf_ini__tco__tam",
   "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4A912",
+  "name": "ip_ti_cr_cst_e85__cyc__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4A922",
+  "name": "ip_ti_cr_cst_ron98__cyc__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4A97C",
+  "name": "ip_fac_rest_e85__t_ast__tco_stop",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4ABC4",
+  "name": "ip_ti_cr_cast_e85__cyc__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4ABD4",
+  "name": "ip_ti_cr_cast_ron98__cyc__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4AD6A",
+  "name": "ip_ti_wup_e85__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4AD7A",
+  "name": "ip_ti_wup_ron98__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B128",
+  "name": "ip_soi_tco_2_is__n__ti",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B138",
+  "name": "ip_soi_tco_1_is__n__ti",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B174",
+  "name": "ip_soi_tco_2_pl__n__ti",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B184",
+  "name": "ip_soi_tco_1_pl__n__ti",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B342",
+  "name": "ip_ti_tco_wup_e85__tco__tco_st",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B352",
+  "name": "ip_ti_tco_wup_ron98__tco__tco_st",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B36E",
+  "name": "ip_ti_tco_wup_is_e85__tco__tco_st",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B37E",
+  "name": "ip_ti_tco_wup_is_ron98__tco__tco_st",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B3C8",
+  "name": "ip_ti_cast_e85__tia__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x4B3D8",
+  "name": "ip_ti_cast_ron98__tia__tco",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x50168",
+  "name": "reader 4 entry",
+  "original": "C2F36BFB"
+ },
+ {
+  "offset": "0x5022A",
+  "name": "reader 0 entry",
+  "original": "C2F26BFB"
+ },
+ {
+  "offset": "0x50262",
+  "name": "reader 1 entry",
+  "original": "C2F26BFB"
+ },
+ {
+  "offset": "0x5029A",
+  "name": "reader 5 entry",
+  "original": "C2F36BFB"
+ },
+ {
+  "offset": "0x503D2",
+  "name": "reader 6 entry",
+  "original": "C2F36BFB"
+ },
+ {
+  "offset": "0x5042E",
+  "name": "reader 3 entry",
+  "original": "C2F26BFB"
+ },
+ {
+  "offset": "0x5043A",
+  "name": "reader 7 entry",
+  "original": "C2F36BFB"
+ },
+ {
+  "offset": "0x50454",
+  "name": "reader 2 entry",
+  "original": "C2F26BFB"
+ },
+ {
+  "offset": "0x504B0",
+  "name": "descriptor 0 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x505C8",
+  "name": "descriptor 1 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x506E4",
+  "name": "descriptor 9 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50776",
+  "name": "descriptor 2 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x5089E",
+  "name": "descriptor 3 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x509BC",
+  "name": "descriptor 4 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50AD6",
+  "name": "descriptor 10 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50B60",
+  "name": "descriptor 5 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50C88",
+  "name": "descriptor 6 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50DA4",
+  "name": "descriptor 11 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50E30",
+  "name": "descriptor 12 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50EC2",
+  "name": "descriptor 7 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x50FE2",
+  "name": "descriptor 13 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x51018",
+  "name": "descriptor 14 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x51052",
+  "name": "descriptor 15 DPP0",
+  "original": "F6F500FE"
+ },
+ {
+  "offset": "0x51092",
+  "name": "descriptor 8 DPP0",
+  "original": "F6FB00FE"
+ },
+ {
+  "offset": "0x5240E",
+  "name": "ip_iga_ref_mon",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x524BE",
+  "name": "ip_tqi_ref_mon",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5256E",
+  "name": "ip_tqi_dif_max_mon",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x52FBA",
+  "name": "ip_maf_sub_mon",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5302C",
+  "name": "ip_pq_main_col_tq_mon",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x53ABC",
+  "name": "ip_tq_max_mon",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x53AEA",
+  "name": "ip_tq_loss_mon",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x55CEE",
+  "name": "ip_temp_sub_ecf_ini__tco__tam",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x55F10",
+  "name": "ip_temp_sub_ecf_ini__tco__tam",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5709A",
+  "name": "ip_fac_er__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x570FC",
+  "name": "ip_fac_igcfb__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x57166",
+  "name": "ip_mis_a_fac__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x585D4",
+  "name": "ip_ivvthpwm__tmag__vb",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5862C",
+  "name": "ip_ivvthpwm__tmag__vb",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x587A2",
+  "name": "ip_fac_iga_tra_gear__gear__vs",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x58C88",
+  "name": "manual gear limits",
+  "original": "DA0D2E04"
+ },
+ {
+  "offset": "0x58CA2",
+  "name": "lc_rpm",
+  "original": "F3F82F13"
+ },
+ {
+  "offset": "0x58CFC",
+  "name": "cut hysteresis",
+  "original": "C2FDFF0B"
+ },
+ {
+  "offset": "0x58D18",
+  "name": "mode refresh",
+  "original": "F3FCAC81"
+ },
+ {
+  "offset": "0x59B6C",
+  "name": "ip_vls_sp_dly__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5B882",
+  "name": "ip_fac_t_dly__tco__tco_st",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5C026",
+  "name": "ip_lam_i_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5C040",
+  "name": "ip_lam_i_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5C092",
+  "name": "ip_lam_neg_p__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5C0DC",
+  "name": "ip_lam_i_2__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5C0F6",
+  "name": "ip_lam_i_1__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5C146",
+  "name": "ip_lam_pos_p__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5D85C",
+  "name": "ip_iga_tco_ch_is__tco__t_ast",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5D894",
+  "name": "ip_iga_tco_ch_at__tco__t_ast",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5D8A6",
+  "name": "ip_iga_tco_ch_mt__tco__t_ast",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5D9AA",
+  "name": "ip_fac_iga_ch_2__tco__t_ast",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5DAF4",
+  "name": "ip_iga_ch__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x5DB0C",
+  "name": "ip_iga_ch_cat_var__n__maf",
+  "original": "DA0D9A02"
+ },
+ {
+  "offset": "0x6E3E2",
+  "name": "housekeeping",
+  "original": "DE800D00"
+ },
+ {
+  "offset": "0x6FE00",
+  "name": "program checksum range",
+  "original": "43B50C00"
  }
 ]
