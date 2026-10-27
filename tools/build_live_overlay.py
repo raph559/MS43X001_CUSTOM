@@ -9,8 +9,8 @@ Steps:
      entry, the program CRC range's end; 4 bytes each) and the overlay's block from 0x4B544 up to the programming
      signature at 0x4FFE6. The boot block and the validity tags are never written.
   3. Apply the records to a copy of the car file (checked against its SHA-256), fix the five checksums, verify them.
-  4. Write the bin (default build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY.bin, not committed) and the test fixture
-     (sim/tests/Ms43Sim.Tests/fixtures/live_overlay.hex, the assembler's output with LF line endings).
+  4. Write the bin (default build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V2.bin, not committed) and the test fixture
+     (sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v2.hex, the assembler's output with LF line endings).
   5. Print the hooks, the overlay's extent, the CRC range and the program identity (sim's ProgramIdentity.Of).
 
 The input bin is only read. Nothing here flashes anything: the bin goes to the bench or the car only with the owner's
@@ -29,8 +29,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAR_NAME = "CAR_current_43X001_SP95_STAGE1.bin"
 CAR_SHA256 = "8cfe31241aa90717195077f1d931ec3bd28e0e76b435a89472dc1fbdfe6c0717"
 SOURCE = os.path.join(REPO, "patches", "live_overlay.asm")
-DEFAULT_OUT = os.path.join(REPO, "build", "CAR_43X001_SP95_STAGE1_LIVE_OVERLAY.bin")
-DEFAULT_FIXTURE = os.path.join(REPO, "sim", "tests", "Ms43Sim.Tests", "fixtures", "live_overlay.hex")
+DEFAULT_OUT = os.path.join(REPO, "build", "CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V2.bin")
+DEFAULT_FIXTURE = os.path.join(REPO, "sim", "tests", "Ms43Sim.Tests", "fixtures", "live_overlay_v2.hex")
 
 HOOKS = {
     0x2C650: "ip_iga_ron98_pl", 0x2C3A4: "ip_iga_ron98_is", 0x3D40A: "ip_af_target_ron98",
@@ -142,7 +142,7 @@ def main():
         else:
             target = "CALLS 0Ch, %04Xh" % (image[site + 2] | image[site + 3] << 8)
         print("  0x%05X  %-34s %s" % (site, what, target))
-    print("overlay 1.%d: code 0C:%04X-0C:%04X, data to 0C:%04X (%d bytes of %d free)"
+    print("overlay protocol %d: code 0C:%04X-0C:%04X, data to 0C:%04X (%d bytes of %d free)"
           % (version, code_start, code_end, data_end, data_end - 0xB544, BLOCK[1] - BLOCK[0]))
     print("wrote %s" % out)
     print("wrote %s" % fixture)

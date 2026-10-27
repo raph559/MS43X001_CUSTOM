@@ -1,8 +1,8 @@
-; MS43X001 live-tuning overlay, version 1 (plan 6).
+; MS43X001 live-tuning overlay, protocol version 2.
 ;
 ; Built by tools/build_live_overlay.py from the car file bins/CAR_current_43X001_SP95_STAGE1.bin; the emulator's tests
-; run its assembly (sim/tests/Ms43Sim.Tests/fixtures/live_overlay.hex). The contract it implements is "The K-line
-; contract" in docs/superpowers/plans/2026-10-22-ms43-emulator-plan6-overlay-bin.md. Nothing built from this file is
+; run its assembly (sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v2.hex). The v2 contract is documented in
+; docs/live-overlay-v2.md. Nothing built from this file is
 ; flashed without the owner's explicit go-ahead; patches/overlay.asm (2026-10-19) is a different, known-bad patch.
 ;
 ; The live set is five tables: the owner took the pedal map and the fuel constant K out (2026-10-22).
@@ -17,19 +17,19 @@
         CPU     80C167
         ASSUME  DPP0:1Ch, DPP1:3Bh, DPP2:10h, DPP3:3
 
-OVL_VERSION     EQU     1               ; (AS predefines VERSION)
+OVL_VERSION     EQU     2               ; (AS predefines VERSION)
 RICHER_ONLY     EQU     1               ; 1: no lambda cell leaner than flashed (no wideband yet)
 N_TABLES        EQU     5               ; the live tables (TABLES would be the label tables to AS)
 
 ; ---- the window: external RAM 9D00-9FDF (page 10h), reached only through EXTP #10h ----
-W_MAGIC         EQU     9D00h           ; C0DEh once the handler has initialised the window
+W_MAGIC         EQU     9D00h           ; C0D2h once the handler has initialised the window
 W_SEEN          EQU     9D02h           ; E2A6 at the last 0x6D frame
-W_DIR           EQU     9D08h           ; 5 entries of 6 bytes: state, 0, copy offset (word), edit sum (word)
-W_COPY          EQU     9D2Ch           ; the copy area: 692 bytes, to 9FDF (9D04-9D07 and 9D26-9D2B stay zero)
-COPY_BYTES      EQU     692
+W_DIR           EQU     9D08h           ; 5 entries of 8 bytes: state, 0, offset, CRC32 low/high words
+W_COPY          EQU     9D30h           ; 688 bytes, to 9FDF; directory ends at 9D2F
+COPY_BYTES      EQU     688
 MOST_WRITE      EQU     120             ; data bytes in one write: its request is then 128 bytes, inside the firmware's 129
-MAGIC           EQU     0C0DEh
-SILENCE         EQU     300             ; 3 s of 10 ms ticks
+MAGIC           EQU     0C0D2h
+SILENCE         EQU     300             ; nominal 3 s of processed firmware ticks
 ST_FREE         EQU     0
 ST_LOADED       EQU     1
 ST_READY        EQU     2
@@ -102,10 +102,8 @@ subst:
         MOV     R3, W_MAGIC
         CMP     R3, #MAGIC
         JMPR    NZ, to_reader
-        MOV     R3, R2                  ; the entry: 9D08h + 6 x the table
-        SHL     R3, #1
-        ADD     R3, R2
-        SHL     R3, #1
+        MOV     R3, R2                  ; the entry: 9D08h + 8 x the table
+        SHL     R3, #3
         ADD     R3, #W_DIR
         EXTP    #10h, #1
         MOVB    RL4, [R3]
@@ -149,9 +147,10 @@ hk_task:
         JMPS    0Dh, 080DEh
 
 ; ---- the DS2 0x6D handler: called by the dispatcher (09:FB76) with the request at F6CD ----
-; It keeps R0 and saves R6-R9 on the user stack, as the firmware's handlers do; R1 is left alone. The serial-line task
+; It keeps R0 and saves R6-R9 and R15 on the user stack, as the firmware's handlers do; R1 is left alone. The serial-line task
 ; sends F74D.. once this returns.
 handler:
+        MOV     [-R0], R15
         MOV     [-R0], R9
         MOV     [-R0], R8
         MOV     [-R0], R7
@@ -160,7 +159,7 @@ handler:
         MOV     R4, W_MAGIC
         CMP     R4, #MAGIC
         JMPR    Z, h_ready
-        MOV     R5, #W_SEEN             ; the first frame since the boot: zero 9D02-9D2B, then the magic
+        MOV     R5, #W_SEEN             ; the first frame since the boot: zero 9D02-9D2F, then the magic
         MOV     R4, #0
 h_zero:
         EXTP    #10h, #1
@@ -204,7 +203,7 @@ h_write:
 h_on:
         CMPB    RL5, #3
         JMPR    NZ, h_off
-        CMPB    RL4, #8
+        CMPB    RL4, #10
         JMPR    NZ, bad_len
         JMPA    UC, sub_on
 h_off:
@@ -283,6 +282,7 @@ h_exit:
         MOV     R7, [R0+]
         MOV     R8, [R0+]
         MOV     R9, [R0+]
+        MOV     R15, [R0+]
         RETS
 
 ; ---- load i, off: the flashed table copied to the copy area at off; Loaded ----
@@ -307,9 +307,7 @@ ld_overlap:
         CMP     R9, R2
         JMPR    Z, ld_next
         MOV     R3, R9
-        SHL     R3, #1
-        ADD     R3, R9
-        SHL     R3, #1
+        SHL     R3, #3
         ADD     R3, #W_DIR
         EXTP    #10h, #1
         MOVB    RL4, [R3]
@@ -353,6 +351,8 @@ ld_copy:
         MOV     R4, #0
         EXTP    #10h, #1
         MOV     [R3+4], R4
+        EXTP    #10h, #1
+        MOV     [R3+6], R4
         MOV     R4, #ST_LOADED          ; the state, written last
         EXTP    #10h, #1
         MOV     [R3], R4
@@ -404,7 +404,7 @@ wr_copy:
         MOV     [R3], R4
         JMPA    UC, ack
 
-; ---- on i, sum: a loaded table whose copy has this edit sum (and keeps the rules) switches on ----
+; ---- on i, crc32: finalize a loaded copy after full-content CRC and bounded-edit checks ----
 sub_on:
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
@@ -417,15 +417,21 @@ sub_on:
         MOVB    RL4, [R3]
         CMPB    RL4, #ST_FREE
         JMPA    Z, refuse_free
-        MOVBZ   R6, REQ_ARG+1
-        SHL     R6, #8
+        MOVBZ   R7, REQ_ARG+1
+        SHL     R7, #8
         MOVBZ   R4, REQ_ARG+2
-        OR      R6, R4                  ; R6: the edit sum
+        OR      R7, R4                  ; high CRC word, wire big-endian
+        MOVBZ   R6, REQ_ARG+3
+        SHL     R6, #8
+        MOVBZ   R4, REQ_ARG+4
+        OR      R6, R4                  ; low CRC word
         CALLA   UC, verify
         CMP     R4, #0
         JMPA    NZ, refuse_b1
         EXTP    #10h, #1
         MOV     [R3+4], R6
+        EXTP    #10h, #1
+        MOV     [R3+6], R7
         MOV     R4, #ST_ON              ; the state, written last
         EXTP    #10h, #1
         MOV     [R3], R4
@@ -446,7 +452,7 @@ sub_off:
         MOV     [R3], R4
         JMPA    UC, ack
 
-; ---- all on: every Ready table verified again with its stored sum and the rules, then all of them On together; a Loaded
+; ---- all on: every Ready table verified again with its stored CRC and the rules, then all of them On together; a Loaded
 ; table stays off. One that fails refuses the request, and nothing switches on ----
 sub_allon:
         CALLA   UC, running
@@ -460,7 +466,9 @@ an_check:
         CMPB    RL4, #ST_READY
         JMPR    NZ, an_cnext
         EXTP    #10h, #1
-        MOV     R6, [R3+4]              ; the sum stored at its last on
+        MOV     R6, [R3+4]              ; low CRC word from last on
+        EXTP    #10h, #1
+        MOV     R7, [R3+6]              ; high CRC word
         CALLA   UC, verify
         CMP     R4, #0
         JMPA    NZ, refuse_b1
@@ -508,7 +516,7 @@ rv_loop:
         JMPR    ULT, rv_loop
         JMPA    UC, ack
 
-; ---- status: the 38-byte payload of the contract ----
+; ---- status: the 48-byte payload of protocol 2 ----
 sub_status:
         CALLA   UC, running
         MOV     R13, R4                 ; 1 while the engine runs
@@ -533,14 +541,18 @@ st_entry:
         ROL     R4, #8
         MOV     [R5+2], R4
         EXTP    #10h, #1
-        MOV     R4, [R3+4]              ; the edit sum
+        MOV     R4, [R3+6]              ; high CRC word first on the wire
         ROL     R4, #8
         MOV     [R5+4], R4
-        ADD     R3, #6
-        ADD     R5, #6
-        CMP     R3, #(W_DIR + 6*N_TABLES)
+        EXTP    #10h, #1
+        MOV     R4, [R3+4]
+        ROL     R4, #8
+        MOV     [R5+6], R4
+        ADD     R3, #8
+        ADD     R5, #8
+        CMP     R3, #(W_DIR + 8*N_TABLES)
         JMPR    ULT, st_entry
-        MOV     R4, #COPY_BYTES         ; the free bytes: 692 less every table not Free
+        MOV     R4, #COPY_BYTES         ; the free bytes: 688 less every table not Free
         MOV     R3, #W_DIR
         MOV     R5, #(tables & 0FFFFh) + 4
 fr_loop:
@@ -552,73 +564,101 @@ fr_loop:
         MOV     R11, [R5]
         SUB     R4, R11
 fr_next:
-        ADD     R3, #6
+        ADD     R3, #8
         ADD     R5, #8
-        CMP     R3, #(W_DIR + 6*N_TABLES)
+        CMP     R3, #(W_DIR + 8*N_TABLES)
         JMPR    ULT, fr_loop
         ROL     R4, #8
-        MOV     [R2+36], R4
+        MOV     [R2+46], R4
         MOVB    RL4, #0A0h
         MOVB    REP_STATUS, RL4
-        MOVB    RL4, #42
+        MOVB    RL4, #52
         MOVB    REP_LEN, RL4
         JMPA    UC, h_exit
 
-; ---- verify: R2 = the table, R3 = its entry, R6 = the edit sum it must have. R4 = 0, or the B1 reason: 09h the sum,
-; 0Ah a lambda cell below its flashed value while RICHER_ONLY holds. Uses R5, R7-R14. The edit sum is the copy's bytes
-; less the flashed table's, modulo 2^16 (D9). ----
+; ---- verify: R2 table, R3 directory entry, R6/R7 expected CRC low/high. R4 = 0 or refusal reason.
+; CRC-32/ISO-HDLC covers the full RAM copy, including unchanged cells. Every accepted cell is within eight raw
+; counts of this image's flash baseline. AFR additionally cannot be leaner. These are bounded edits, not engine validation.
 verify:
+        MOV     [-R0], R6
+        MOV     [-R0], R7
         CALLA   UC, table_info
         EXTP    #10h, #1
         MOV     R13, [R3+2]
         ADD     R13, #W_COPY
-        MOV     R8, R12                 ; R8, R9: the flashed table and the copy, for the rule
-        MOV     R9, R13
-        MOV     R4, #0
-        MOV     R5, R10
-vf_loop:
-        EXTP    #10h, #1
-        MOVB    RL7, [R13]
-        MOVBZ   R7, RL7
-        ADD     R4, R7
-        EXTP    R11, #1
-        MOVB    RL7, [R12]
-        MOVBZ   R7, RL7
-        SUB     R4, R7
-        ADD     R12, #1
-        ADD     R13, #1
-        SUB     R5, #1
-        JMPR    NZ, vf_loop
+        CALLA   UC, content_crc
+        MOV     R7, [R0+]
+        MOV     R6, [R0+]
         CMP     R4, R6
-        JMPR    NZ, vf_sum
-        IF      RICHER_ONLY
-        JNB     R14.0, vf_ok            ; the lambda rule's table only
-        MOV     R12, R8                 ; lambda = 1.5 - X/256: a cell below its flashed value is leaner
-        MOV     R13, R9
-        MOV     R5, R10
-vf_lambda:
-        EXTP    #10h, #1
-        MOVB    RL7, [R13]
-        EXTP    R11, #1
-        MOVB    RH7, [R12]
-        CMPB    RL7, RH7
-        JMPR    ULT, vf_leaner
-        ADD     R12, #1
-        ADD     R13, #1
-        SUB     R5, #1
-        JMPR    NZ, vf_lambda
-        ENDIF
-vf_ok:
-        MOV     R4, #0
+        JMPA    NZ, vf_crc
+        CMP     R5, R7
+        JMPA    NZ, vf_crc
+        MOV     R4, R15                 ; content CRC matched; report the first bounded-edit refusal, if any
         RET
-vf_sum:
+vf_crc:
         MOV     R4, #9
         RET
-        IF      RICHER_ONLY
-vf_leaner:
-        MOV     R4, #0Ah
+
+; R11 flash page, R12 flash pointer, R13 RAM pointer, R10 length, R14 flags.
+; Returns content CRC low/high in R4/R5, and first cell-policy refusal (or zero) in R15.
+; One reflected byte-table update and one bounded-edit comparison per byte, in the same pass.
+; R2/R3 are preserved. R6/R7 are scratch (verify saves the expected CRC on the user stack).
+content_crc:
+        MOV     R8, #0FFFFh
+        MOV     R9, #0FFFFh
+        MOV     R15, #0
+crc_byte:
+        EXTP    #10h, #1
+        MOVB    RL4, [R13]
+        MOVBZ   R4, RL4
+        CMP     R15, #0
+        JMPR    NZ, crc_update
+        EXTP    R11, #1
+        MOVB    RL5, [R12]
+        MOVBZ   R5, RL5
+        MOV     R6, R4
+        SUB     R6, R5                  ; signed delta -255..255, never an eight-bit wrapped difference
+        JNB     R14.0, crc_limit
+        CMP     R6, #0
+        JMPR    SLT, crc_leaner
+crc_limit:
+        CMP     R6, #8
+        JMPR    SGT, crc_limit_bad
+        CMP     R6, #0FFF8h
+        JMPR    SLT, crc_limit_bad
+        JMPR    UC, crc_update
+crc_leaner:
+        MOV     R15, #0Ah
+        JMPR    UC, crc_update
+crc_limit_bad:
+        MOV     R15, #0Bh
+crc_update:
+        XOR     R8, R4
+        MOV     R5, R8
+        AND     R5, #0FFh
+        SHL     R5, #2
+        ADD     R5, #(crc_table & 0FFFFh)
+        MOV     R6, R8
+        SHR     R6, #8
+        MOV     R7, R9
+        SHL     R7, #8
+        OR      R6, R7
+        SHR     R9, #8
+        MOV     R8, R6
+        EXTS    #0Ch, #2
+        MOV     R4, [R5]
+        MOV     R7, [R5+2]
+        XOR     R8, R4
+        XOR     R9, R7
+        ADD     R12, #1
+        ADD     R13, #1
+        SUB     R10, #1
+        JMPR    NZ, crc_byte
+        MOV     R4, R8
+        XOR     R4, #0FFFFh
+        MOV     R5, R9
+        XOR     R5, #0FFFFh
         RET
-        ENDIF
 
 ; ---- off_due: R4 = 1 when everything must be off: the engine not running, or 300 ticks since the last 0x6D frame;
 ; else 0. Uses R4 ----
@@ -649,26 +689,25 @@ ao_loop:
         EXTP    #10h, #1
         MOV     [R3], R4
 ao_next:
-        ADD     R3, #6
-        CMP     R3, #(W_DIR + 6*N_TABLES)
+        ADD     R3, #8
+        CMP     R3, #(W_DIR + 8*N_TABLES)
         JMPR    ULT, ao_loop
         RET
 
-; ---- free_entry: the entry at R3 to Free, its offset and sum 0; the state first, so no stub substitutes after it. Uses R4 ----
+; ---- free_entry: the entry at R3 to Free, its offset and CRC 0; the state first, so no stub substitutes after it. Uses R4 ----
 free_entry:
         MOV     R4, #0
-        EXTP    #10h, #3
+        EXTP    #10h, #4
         MOV     [R3], R4
         MOV     [R3+2], R4
         MOV     [R3+4], R4
+        MOV     [R3+6], R4
         RET
 
-; ---- entry_addr: R3 = the entry of table R2 (9D08h + 6 x R2); uses R3 ----
+; ---- entry_addr: R3 = the entry of table R2 (9D08h + 8 x R2); uses R3 ----
 entry_addr:
         MOV     R3, R2
-        SHL     R3, #1
-        ADD     R3, R2
-        SHL     R3, #1
+        SHL     R3, #3
         ADD     R3, #W_DIR
         RET
 
@@ -707,6 +746,264 @@ tables:
         DW      001Fh, 169Ch, 192, 1    ; 2 ip_af_target_ron98__maf__n 0x7D69C
         DW      001Dh, 2390h, 192, 0    ; 3 ip_cam_sp_ron98_in_pl     0x76390
         DW      001Dh, 229Ch, 192, 0    ; 4 ip_cam_sp_ron98_ex_pl     0x7629C
+
+crc_table:
+        DW      00000h, 00000h
+        DW      03096h, 07707h
+        DW      0612Ch, 0EE0Eh
+        DW      051BAh, 09909h
+        DW      0C419h, 0076Dh
+        DW      0F48Fh, 0706Ah
+        DW      0A535h, 0E963h
+        DW      095A3h, 09E64h
+        DW      08832h, 00EDBh
+        DW      0B8A4h, 079DCh
+        DW      0E91Eh, 0E0D5h
+        DW      0D988h, 097D2h
+        DW      04C2Bh, 009B6h
+        DW      07CBDh, 07EB1h
+        DW      02D07h, 0E7B8h
+        DW      01D91h, 090BFh
+        DW      01064h, 01DB7h
+        DW      020F2h, 06AB0h
+        DW      07148h, 0F3B9h
+        DW      041DEh, 084BEh
+        DW      0D47Dh, 01ADAh
+        DW      0E4EBh, 06DDDh
+        DW      0B551h, 0F4D4h
+        DW      085C7h, 083D3h
+        DW      09856h, 0136Ch
+        DW      0A8C0h, 0646Bh
+        DW      0F97Ah, 0FD62h
+        DW      0C9ECh, 08A65h
+        DW      05C4Fh, 01401h
+        DW      06CD9h, 06306h
+        DW      03D63h, 0FA0Fh
+        DW      00DF5h, 08D08h
+        DW      020C8h, 03B6Eh
+        DW      0105Eh, 04C69h
+        DW      041E4h, 0D560h
+        DW      07172h, 0A267h
+        DW      0E4D1h, 03C03h
+        DW      0D447h, 04B04h
+        DW      085FDh, 0D20Dh
+        DW      0B56Bh, 0A50Ah
+        DW      0A8FAh, 035B5h
+        DW      0986Ch, 042B2h
+        DW      0C9D6h, 0DBBBh
+        DW      0F940h, 0ACBCh
+        DW      06CE3h, 032D8h
+        DW      05C75h, 045DFh
+        DW      00DCFh, 0DCD6h
+        DW      03D59h, 0ABD1h
+        DW      030ACh, 026D9h
+        DW      0003Ah, 051DEh
+        DW      05180h, 0C8D7h
+        DW      06116h, 0BFD0h
+        DW      0F4B5h, 021B4h
+        DW      0C423h, 056B3h
+        DW      09599h, 0CFBAh
+        DW      0A50Fh, 0B8BDh
+        DW      0B89Eh, 02802h
+        DW      08808h, 05F05h
+        DW      0D9B2h, 0C60Ch
+        DW      0E924h, 0B10Bh
+        DW      07C87h, 02F6Fh
+        DW      04C11h, 05868h
+        DW      01DABh, 0C161h
+        DW      02D3Dh, 0B666h
+        DW      04190h, 076DCh
+        DW      07106h, 001DBh
+        DW      020BCh, 098D2h
+        DW      0102Ah, 0EFD5h
+        DW      08589h, 071B1h
+        DW      0B51Fh, 006B6h
+        DW      0E4A5h, 09FBFh
+        DW      0D433h, 0E8B8h
+        DW      0C9A2h, 07807h
+        DW      0F934h, 00F00h
+        DW      0A88Eh, 09609h
+        DW      09818h, 0E10Eh
+        DW      00DBBh, 07F6Ah
+        DW      03D2Dh, 0086Dh
+        DW      06C97h, 09164h
+        DW      05C01h, 0E663h
+        DW      051F4h, 06B6Bh
+        DW      06162h, 01C6Ch
+        DW      030D8h, 08565h
+        DW      0004Eh, 0F262h
+        DW      095EDh, 06C06h
+        DW      0A57Bh, 01B01h
+        DW      0F4C1h, 08208h
+        DW      0C457h, 0F50Fh
+        DW      0D9C6h, 065B0h
+        DW      0E950h, 012B7h
+        DW      0B8EAh, 08BBEh
+        DW      0887Ch, 0FCB9h
+        DW      01DDFh, 062DDh
+        DW      02D49h, 015DAh
+        DW      07CF3h, 08CD3h
+        DW      04C65h, 0FBD4h
+        DW      06158h, 04DB2h
+        DW      051CEh, 03AB5h
+        DW      00074h, 0A3BCh
+        DW      030E2h, 0D4BBh
+        DW      0A541h, 04ADFh
+        DW      095D7h, 03DD8h
+        DW      0C46Dh, 0A4D1h
+        DW      0F4FBh, 0D3D6h
+        DW      0E96Ah, 04369h
+        DW      0D9FCh, 0346Eh
+        DW      08846h, 0AD67h
+        DW      0B8D0h, 0DA60h
+        DW      02D73h, 04404h
+        DW      01DE5h, 03303h
+        DW      04C5Fh, 0AA0Ah
+        DW      07CC9h, 0DD0Dh
+        DW      0713Ch, 05005h
+        DW      041AAh, 02702h
+        DW      01010h, 0BE0Bh
+        DW      02086h, 0C90Ch
+        DW      0B525h, 05768h
+        DW      085B3h, 0206Fh
+        DW      0D409h, 0B966h
+        DW      0E49Fh, 0CE61h
+        DW      0F90Eh, 05EDEh
+        DW      0C998h, 029D9h
+        DW      09822h, 0B0D0h
+        DW      0A8B4h, 0C7D7h
+        DW      03D17h, 059B3h
+        DW      00D81h, 02EB4h
+        DW      05C3Bh, 0B7BDh
+        DW      06CADh, 0C0BAh
+        DW      08320h, 0EDB8h
+        DW      0B3B6h, 09ABFh
+        DW      0E20Ch, 003B6h
+        DW      0D29Ah, 074B1h
+        DW      04739h, 0EAD5h
+        DW      077AFh, 09DD2h
+        DW      02615h, 004DBh
+        DW      01683h, 073DCh
+        DW      00B12h, 0E363h
+        DW      03B84h, 09464h
+        DW      06A3Eh, 00D6Dh
+        DW      05AA8h, 07A6Ah
+        DW      0CF0Bh, 0E40Eh
+        DW      0FF9Dh, 09309h
+        DW      0AE27h, 00A00h
+        DW      09EB1h, 07D07h
+        DW      09344h, 0F00Fh
+        DW      0A3D2h, 08708h
+        DW      0F268h, 01E01h
+        DW      0C2FEh, 06906h
+        DW      0575Dh, 0F762h
+        DW      067CBh, 08065h
+        DW      03671h, 0196Ch
+        DW      006E7h, 06E6Bh
+        DW      01B76h, 0FED4h
+        DW      02BE0h, 089D3h
+        DW      07A5Ah, 010DAh
+        DW      04ACCh, 067DDh
+        DW      0DF6Fh, 0F9B9h
+        DW      0EFF9h, 08EBEh
+        DW      0BE43h, 017B7h
+        DW      08ED5h, 060B0h
+        DW      0A3E8h, 0D6D6h
+        DW      0937Eh, 0A1D1h
+        DW      0C2C4h, 038D8h
+        DW      0F252h, 04FDFh
+        DW      067F1h, 0D1BBh
+        DW      05767h, 0A6BCh
+        DW      006DDh, 03FB5h
+        DW      0364Bh, 048B2h
+        DW      02BDAh, 0D80Dh
+        DW      01B4Ch, 0AF0Ah
+        DW      04AF6h, 03603h
+        DW      07A60h, 04104h
+        DW      0EFC3h, 0DF60h
+        DW      0DF55h, 0A867h
+        DW      08EEFh, 0316Eh
+        DW      0BE79h, 04669h
+        DW      0B38Ch, 0CB61h
+        DW      0831Ah, 0BC66h
+        DW      0D2A0h, 0256Fh
+        DW      0E236h, 05268h
+        DW      07795h, 0CC0Ch
+        DW      04703h, 0BB0Bh
+        DW      016B9h, 02202h
+        DW      0262Fh, 05505h
+        DW      03BBEh, 0C5BAh
+        DW      00B28h, 0B2BDh
+        DW      05A92h, 02BB4h
+        DW      06A04h, 05CB3h
+        DW      0FFA7h, 0C2D7h
+        DW      0CF31h, 0B5D0h
+        DW      09E8Bh, 02CD9h
+        DW      0AE1Dh, 05BDEh
+        DW      0C2B0h, 09B64h
+        DW      0F226h, 0EC63h
+        DW      0A39Ch, 0756Ah
+        DW      0930Ah, 0026Dh
+        DW      006A9h, 09C09h
+        DW      0363Fh, 0EB0Eh
+        DW      06785h, 07207h
+        DW      05713h, 00500h
+        DW      04A82h, 095BFh
+        DW      07A14h, 0E2B8h
+        DW      02BAEh, 07BB1h
+        DW      01B38h, 00CB6h
+        DW      08E9Bh, 092D2h
+        DW      0BE0Dh, 0E5D5h
+        DW      0EFB7h, 07CDCh
+        DW      0DF21h, 00BDBh
+        DW      0D2D4h, 086D3h
+        DW      0E242h, 0F1D4h
+        DW      0B3F8h, 068DDh
+        DW      0836Eh, 01FDAh
+        DW      016CDh, 081BEh
+        DW      0265Bh, 0F6B9h
+        DW      077E1h, 06FB0h
+        DW      04777h, 018B7h
+        DW      05AE6h, 08808h
+        DW      06A70h, 0FF0Fh
+        DW      03BCAh, 06606h
+        DW      00B5Ch, 01101h
+        DW      09EFFh, 08F65h
+        DW      0AE69h, 0F862h
+        DW      0FFD3h, 0616Bh
+        DW      0CF45h, 0166Ch
+        DW      0E278h, 0A00Ah
+        DW      0D2EEh, 0D70Dh
+        DW      08354h, 04E04h
+        DW      0B3C2h, 03903h
+        DW      02661h, 0A767h
+        DW      016F7h, 0D060h
+        DW      0474Dh, 04969h
+        DW      077DBh, 03E6Eh
+        DW      06A4Ah, 0AED1h
+        DW      05ADCh, 0D9D6h
+        DW      00B66h, 040DFh
+        DW      03BF0h, 037D8h
+        DW      0AE53h, 0A9BCh
+        DW      09EC5h, 0DEBBh
+        DW      0CF7Fh, 047B2h
+        DW      0FFE9h, 030B5h
+        DW      0F21Ch, 0BDBDh
+        DW      0C28Ah, 0CABAh
+        DW      09330h, 053B3h
+        DW      0A3A6h, 024B4h
+        DW      03605h, 0BAD0h
+        DW      00693h, 0CDD7h
+        DW      05729h, 054DEh
+        DW      067BFh, 023D9h
+        DW      07A2Eh, 0B366h
+        DW      04AB8h, 0C461h
+        DW      01B02h, 05D68h
+        DW      02B94h, 02A6Fh
+        DW      0BE37h, 0B40Bh
+        DW      08EA1h, 0C30Ch
+        DW      0DF1Bh, 05A05h
+        DW      0EF8Dh, 02D02h
 
 data_end:
 
