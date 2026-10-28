@@ -7,7 +7,7 @@ POPS_MIN        EQU     09FBEh          ; byte: the lowest 807F in the window (0
 
 ; ---- the limits of group 138: lowest and highest value of each byte; a switch above its highest reads as 0 ----
 pops_limits:
-        DB      0, 2            ; 0 switch: 0 off, 1 always on, 2 cruise control ready
+        DB      0, 2            ; 0 switch: 0 off, 1 always on, 2 cruise control ready; or 80h..9Fh, a CAN bit (pops_conditions)
         DB      1, 50           ; 1 duration, 0.1 s
         DB      0, 255          ; 2 ignition angle, 0.375 X - 23.625 deg BTDC
         DB      128, 210        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, 184 = 11.5, 210 = 10.0)
@@ -27,6 +27,13 @@ pops_setting:
         EXTP    R4, #1
         MOVB    RL2, [R3]
         MOV     R3, [R0+2]
+        CMP     R3, #0
+        JMPR    NZ, ps_clamp
+        MOVB    RL4, RL2
+        ANDB    RL4, #0E0h
+        CMPB    RL4, #80h
+        JMPR    Z, ps_done              ; switch 80h..9Fh: a CAN bit, kept as it is
+ps_clamp:
         SHL     R3, #1
         ADD     R3, #(pops_limits & 0FFFFh)
         EXTS    #0Ch, #1
@@ -60,6 +67,13 @@ pv_loop:
         ADD     R6, R5
         EXTP    R14, #1
         MOVB    RL7, [R6]
+        CMP     R5, #0
+        JMPR    NZ, pv_range
+        MOVB    RL4, RL7
+        ANDB    RL4, #0E0h
+        CMPB    RL4, #80h
+        JMPR    Z, pv_next              ; switch 80h..9Fh: a CAN bit
+pv_range:
         MOV     R6, R5
         SHL     R6, #1
         ADD     R6, #(pops_limits & 0FFFFh)
@@ -69,6 +83,7 @@ pv_loop:
         JMPR    ULT, pv_bad
         CMPB    RL7, RH4
         JMPR    UGT, pv_bad
+pv_next:
         ADD     R5, #1
         CMP     R5, #8
         JMPR    ULT, pv_loop
@@ -86,12 +101,32 @@ pops_conditions:
         MOV     R5, #0
         MOV     R3, #0
         CALLA   UC, pops_setting
+        JB      R4.7, pc_can
         CMP     R4, #1
         JMPR    Z, pc_switched_on
         CMP     R4, #2
         JMPR    NZ, pc_done
         JNB     0FD18h.1, pc_done       ; cruise control main switch off
         JB      0FD18h.2, pc_done       ; cruise control holding a speed
+        JMPR    UC, pc_switched_on
+; Switch 80h..9Fh: bit 4 the message (0 the ASC's 153h, CAN object 4 data at EF47; 1 the A/C's 615h, object 3 at EF37),
+; bit 3 the polarity (0: on while the bit is 1), bits 0..2 the bit of the frame's first byte.
+pc_can:
+        MOV     R3, #0EF47h
+        JNB     R4.4, pc_can_read
+        MOV     R3, #0EF37h
+pc_can_read:
+        MOVB    RL2, [R3]
+        MOVBZ   R2, RL2
+        MOV     R3, R4
+        AND     R3, #7
+        SHR     R2, R3
+        AND     R2, #1
+        JNB     R4.3, pc_can_level
+        XOR     R2, #1
+pc_can_level:
+        CMP     R2, #0
+        JMPR    Z, pc_done
 pc_switched_on:
         MOV     R3, #4
         CALLA   UC, pops_setting
