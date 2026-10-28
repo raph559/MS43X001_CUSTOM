@@ -3143,10 +3143,10 @@ crc_zero_powers:
         DW      0BCA8h, 09B9Ah
         DW      07F11h, 0EC44h
 
-; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR, 1,600 rpm, 70.5 deg C, no throttle, 20 km/h.
+; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, no throttle, 20 km/h.
         ORG     0CFF80h
 pops_defaults:
-        DB      00h, 14h, 17h, 73h, 32h, 9Eh, 00h, 14h
+        DB      000h, 014h, 017h, 0B8h, 032h, 09Eh, 000h, 014h
 
 data_end:
 
@@ -3494,3 +3494,5 @@ data_end:
         JMPS    0Ch, pops_afr & 0FFFFh
         ORG     09B138h
         CALLS   0Ch, pops_throttle & 0FFFFh
+        ORG     0BD3B2h
+        JMPS    0Ch, pops_target & 0FFFFh

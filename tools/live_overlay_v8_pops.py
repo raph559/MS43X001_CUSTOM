@@ -4,12 +4,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULTS_FILE = 0x4FF80          # CPU 0C:FF80, app address 0xCFF80, catalogue page 33h offset 3F80h
-DEFAULTS = bytes([0x00, 0x14, 0x17, 0x73, 0x32, 0x9E, 0x00, 0x14])
+DEFAULTS = bytes([0x00, 0x14, 0x17, 0xB8, 0x32, 0x9E, 0x00, 0x14])
 GROUP = dict(id=138, name="pops", address=0xCFF80, bytes=8, flags=2, fields=8)
 
 # The sites V8 patches beyond V7, with the donor's instructions (file offset: name, bytes).
 PINNED = {0x2A7BC: ("overrun cut gate", "8A1704D08A180220"), 0x2D424: ("spark call", "DA0B845C"),
-          0x3D434: ("AFR branch", "8A7C0B20"), 0x1B138: ("throttle store", "F6F4A486")}
+          0x3D434: ("AFR branch", "8A7C0B20"), 0x1B138: ("throttle store", "F6F4A486"),
+          0x3D3B2: ("pedal-released skip", "9A220230")}
 
 HOOKS = """
         ORG     0AA7BCh
@@ -22,6 +23,8 @@ HOOKS = """
         JMPS    0Ch, pops_afr & 0FFFFh
         ORG     09B138h
         CALLS   0Ch, pops_throttle & 0FFFFh
+        ORG     0BD3B2h
+        JMPS    0Ch, pops_target & 0FFFFh
 """
 
 
@@ -48,9 +51,9 @@ def prepare(image):
     source = _replace(source, "live_overlay_v7_feature_helpers.inc", "live_overlay_v8_feature_helpers.inc")
     source = _replace(source, "\ncode_end:", '\n        INCLUDE "live_overlay_v8_pops.inc"\n\ncode_end:')
     source = _replace(source, "\ncrc_table:", "        DW      0033h, 03F80h, 8, 2 ; 138 pops\n\ncrc_table:")
-    data = ", ".join(f"{b:02X}h" for b in DEFAULTS)
+    data = ", ".join(f"0{b:02X}h" for b in DEFAULTS)
     source = _replace(source, "\ndata_end:",
-                      f"\n; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR, 1,600 rpm, 70.5 deg C, no throttle, 20 km/h.\n"
+                      f"\n; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, no throttle, 20 km/h.\n"
                       f"        ORG     0CFF80h\npops_defaults:\n        DB      {data}\n\ndata_end:")
 
     helpers = (ROOT / "patches/live_overlay_v7_feature_helpers.inc").read_text()
