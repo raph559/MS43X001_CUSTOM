@@ -1016,6 +1016,7 @@ to_reader:
 hk:
         MOV     [-R0], R3
         MOV     [-R0], R4
+        CALLA   UC, pops_tick
         EXTP    #3, #1
         MOV     R4, W_MAGIC
         CMP     R4, #MAGIC
@@ -3482,3 +3483,8 @@ data_end:
         CALLS 0Ch, word_map136 & 0FFFFh
         ORG 09B018h
         CALLS 0Ch, word_map137 & 0FFFFh
+
+        ORG     0AA7BCh
+        JMPS    0Ch, pops_gate & 0FFFFh
+        NOP
+        NOP

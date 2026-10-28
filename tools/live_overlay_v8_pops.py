@@ -8,7 +8,14 @@ DEFAULTS = bytes([0x00, 0x14, 0x17, 0x73, 0x32, 0x9E, 0x00, 0x14])
 GROUP = dict(id=138, name="pops", address=0xCFF80, bytes=8, flags=2, fields=8)
 
 # The sites V8 patches beyond V7, with the donor's instructions (file offset: name, bytes).
-PINNED = {}
+PINNED = {0x2A7BC: ("overrun cut gate", "8A1704D08A180220")}
+
+HOOKS = """
+        ORG     0AA7BCh
+        JMPS    0Ch, pops_gate & 0FFFFh
+        NOP
+        NOP
+"""
 
 
 def _replace(text, old, new, count=1):
@@ -58,6 +65,9 @@ def prepare(image):
                        "feature_write_validate:\n        CMP     R2, #138\n        JMPR    Z, fwv_group\n"
                        "        CMP     R2, #126\n        JMPR    UGT, fv_ok\n        CMP     R2, #124\n        JMPR    ULT, fv_ok\n"
                        "fwv_group:\n")
+    source = _replace(source, "hk:\n        MOV     [-R0], R3\n        MOV     [-R0], R4\n",
+                      "hk:\n        MOV     [-R0], R3\n        MOV     [-R0], R4\n        CALLA   UC, pops_tick\n")
+    source += HOOKS
     (ROOT / "patches/live_overlay_v8.asm").write_text(source)
     (ROOT / "patches/live_overlay_v8_feature_helpers.inc").write_text(helpers)
     return GROUP
