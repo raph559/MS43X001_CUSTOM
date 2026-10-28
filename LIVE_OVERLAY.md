@@ -1,5 +1,9 @@
 # Live-tuning RAM overlay — design for the car's MS43X001
 
+> **2026-10-24:** built as `patches/live_overlay.asm` (plan 6): the RON98 ignition, idle ignition,
+> RON98 λ target and both part-load cam targets, switched over the K-line by DS2 command 0x6D. The
+> bin is proven in the emulator, not flashed; see the source contract.
+
 > **2026-10-22:** the scope is replaced by
 > the source contract. Two corrections to this
 > document: the VE maps are **not** the car's fuel map, because the car takes its load from the MAF
