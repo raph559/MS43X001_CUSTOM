@@ -24,7 +24,7 @@ the source contract.
 | 0 | Switch | 0 off, 1 always on, 2 cruise control ready | 0..2 | 0 |
 | 1 | Duration | 0.1 s | 1..50 | 20 (2.0 s) |
 | 2 | Spark angle, fixed | 0.375·X − 23.625 °BTDC | 0..255 | 23 (−15.0°) |
-| 3 | AFR target | 0.1·X | 100..147 | 115 (11.5) |
+| 3 | AFR target | the firmware's: λ = 1.5 − X/256 (128 = 14.7, 184 = 11.5) | 128..210 | 184 (11.5) |
 | 4 | Minimum engine speed | 32·X rpm | 50..219 | 50 (1,600 rpm) |
 | 5 | Minimum coolant | 0.75·X − 48 °C | 144..255 | 158 (70.5 °C) |
 | 6 | Throttle opening | 0.1 °TPS | 0..50 | 0 |
@@ -53,7 +53,8 @@ reads as 0.
 | `0x2D424` spark call | `CALLS 0Bh, 5C84h` | `CALLS pops_spark`: during a window `E2B5` is the set angle, then `JMPS 0Bh, 5C84h`. Knock retard does not act in overrun |
 | `0x3D434` AFR branch | `JB FDF8.2, 3D44E` | `JMPS pops_afr`. RAL keeps priority. During a window R12 = R13 = the set AFR, through the shared path, which takes the richer target and switches the lambda loop off from 1,600 rpm |
 | `0x1B138` throttle store | `MOV 86A4h, R4` | `CALLS pops_throttle`: during a window the opening is added to the pedal-map setpoint, saturating. The flags come out as the stock store leaves them |
-| housekeeping (10 ms) | — | `pops_tick`. It counts the window down and keeps misfire detection suppressed (`E3B0 = 100`, `FD2A.12`). When `FD2C.11` and `FD2C.12` are both clear, it clears both flags |
+| `0x3D3B2` pedal-released skip | `JNB FD44.3, 3D3BA` / `JMPA 3D476` | `JMPS pops_target`. During a window the target and full-load enrichment path runs even with the pedal released; otherwise it is stock |
+| housekeeping (10 ms) | — | `pops_tick`. It counts the window down and ends it at time-up or on any failed condition or the RPM rise, whether or not the gate runs. While the window runs, it keeps misfire detection suppressed (`E3B0 = 100`, `FD2A.12`). When `FD2C.11` and `FD2C.12` are both clear, it clears both flags |
 
 A window starts at the stock cut decision when every condition below holds:
 - the switch is on;
@@ -61,7 +62,7 @@ A window starts at the stock cut decision when every condition below holds:
 - the clutch (`FD2E.6`) is not pressed;
 - LC, NLS and RAL are inactive.
 
-The window ends at the next gate pass in any of these cases:
+The window ends within 10 ms (the tick), or at the next gate pass, in any of these cases:
 - a condition fails;
 - the time is up;
 - `807F` reaches the lowest value seen plus 5, a rise of 160 rpm.
