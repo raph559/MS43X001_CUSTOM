@@ -199,3 +199,74 @@ pt_misfire:
         BSET    0FD2Ah.12
 pt_done:
         RET
+
+; ---- the spark call (0A:D424, CALLS 0Bh, 5C84h): during a window the angle is the setting, written where the
+; per-cylinder angles are taken from (E2B5, the encoding of ip_iga_puc). Knock retard is not applied in overrun. ----
+pops_spark:
+        JNB     0FDF8h.3, psk_stock
+        JNB     0FD2Ch.11, psk_stock
+        PUSH    0FF10h                  ; PSW
+        MOV     [-R0], R3
+        MOV     [-R0], R4
+        MOV     R3, #2
+        CALLA   UC, pops_setting
+        MOVB    0E2B5h, RL4
+        MOV     R4, #0
+        MOVB    0E2B4h, RL4
+        MOV     R4, [R0+]
+        MOV     R3, [R0+]
+        POP     0FF10h                  ; PSW
+psk_stock:
+        JMPS    0Bh, 05C84h
+
+; ---- the AFR branch (0B:D434, JB FDF8.2): RAL first, as stock; during a window the rich target goes through the
+; shared feature path, which takes the richer of it and the stock target and switches the lambda loop off. ----
+pops_afr:
+        JB      0FDF8h.2, pa_ral
+        JNB     0FDF8h.3, pa_none
+        JNB     0FD2Ch.11, pa_none
+        PUSH    0FF10h                  ; PSW
+        MOV     [-R0], R3
+        MOV     [-R0], R4
+        MOV     R3, #3
+        CALLA   UC, pops_setting
+        MOV     R12, R4                 ; the same value for both fuels, so the blend returns it
+        MOV     R13, R4
+        MOV     R4, [R0+]
+        MOV     R3, [R0+]
+        POP     0FF10h                  ; PSW
+        JMPS    0Bh, 0D456h
+pa_ral:
+        JMPS    0Bh, 0D44Eh
+pa_none:
+        JMPS    0Bh, 0D464h
+
+; ---- the throttle store (09:B138, MOV 86A4h, R4): during a window the opening is added to the pedal-map setpoint,
+; saturating; the store then sets E, Z and N as the stock one does, with C and V as they came. ----
+pops_throttle:
+        JNB     0FDF8h.3, pth_store
+        JNB     0FD2Ch.11, pth_store
+        PUSH    0FF10h                  ; PSW
+        MOV     [-R0], R2
+        MOV     [-R0], R3
+        MOV     R2, R4
+        MOV     R3, #6
+        CALLA   UC, pops_setting
+        SHL     R4, #1
+        ADD     R4, #(pops_throttle_add & 0FFFFh)
+        EXTS    #0Ch, #1
+        MOV     R4, [R4]
+        ADD     R4, R2
+        JMPR    NC, pth_sum
+        MOV     R4, #0FFFFh
+pth_sum:
+        MOV     R3, [R0+]
+        MOV     R2, [R0+]
+        POP     0FF10h                  ; PSW
+pth_store:
+        MOV     86A4h, R4
+        RETS
+
+; 86A4 units added for each 0.1 deg TPS of opening: X * 2731 / 50 (2731 = 5.0 deg TPS as the logger shows it).
+pops_throttle_add:
+        DW      0, 54, 109, 163, 218, 273, 327, 382, 436, 491, 546, 600, 655, 710, 764, 819, 873, 928, 983, 1037, 1092, 1147, 1201, 1256, 1310, 1365, 1420, 1474, 1529, 1583, 1638, 1693, 1747, 1802, 1857, 1911, 1966, 2020, 2075, 2130, 2184, 2239, 2294, 2348, 2403, 2457, 2512, 2567, 2621, 2676, 2731

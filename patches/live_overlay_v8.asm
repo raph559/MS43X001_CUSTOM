@@ -3488,3 +3488,9 @@ data_end:
         JMPS    0Ch, pops_gate & 0FFFFh
         NOP
         NOP
+        ORG     0AD424h
+        CALLS   0Ch, pops_spark & 0FFFFh
+        ORG     0BD434h
+        JMPS    0Ch, pops_afr & 0FFFFh
+        ORG     09B138h
+        CALLS   0Ch, pops_throttle & 0FFFFh
