@@ -968,3 +968,35 @@ watch_unalias:
         MOV     W_APAGE, R4
         MOV     R4, [R0+]
         RET
+
+; ---- sub 11 (Task 5): 6D 0B logs. The reply is the stock 0B B0 payload (F750..F798, unchanged), then the record
+; big-endian at F799..F7A3: KIND COUNT ROWh ROWl ROWFh ROWFl COLh COLl COLFh COLFl COLS; 88 bytes with the frame ----
+sub_log:
+        CALLS   0Ch, 467Eh              ; the stock logging reply; changes R4..R9 and PSW, which h_exit restores
+        MOVB    RL4, #58h
+        MOVB    REP_LEN, RL4
+        MOV     R6, #0F799h
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off: a reply never carries half of two reads (RF2)
+wl_rec:
+        MOVB    RL4, W_KIND
+        MOVB    [R6], RL4
+        MOVB    RL4, W_COUNT
+        MOVB    [R6+1], RL4
+        MOV     R4, W_ROW
+        MOVB    [R6+2], RH4
+        MOVB    [R6+3], RL4
+        MOV     R4, W_ROWF
+        MOVB    [R6+4], RH4
+        MOVB    [R6+5], RL4
+        MOV     R4, W_COL
+        MOVB    [R6+6], RH4
+        MOVB    [R6+7], RL4
+        MOV     R4, W_COLF
+        MOVB    [R6+8], RH4
+        MOVB    [R6+9], RL4
+        MOVB    RL4, W_COLS
+        MOVB    [R6+10], RL4
+wl_end:
+        POP     0FF10h                  ; PSW
+        JMPA    UC, h_exit

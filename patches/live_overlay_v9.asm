@@ -1096,10 +1096,16 @@ h_patch:
         JMPA    UC, sub_patch
 h_watch:
         CMP     R5, #12
-        JMPR    NZ, h_auth
+        JMPR    NZ, h_log
         CMP     R4, #8
         JMPA    NZ, bad_len
         JMPA    UC, sub_watch
+h_log:
+        CMP     R5, #11
+        JMPR    NZ, h_auth
+        CMP     R4, #5
+        JMPA    NZ, bad_len
+        JMPA    UC, sub_log
 h_auth:
         CMP     R4, #13
         JMPA    ULT, bad_len

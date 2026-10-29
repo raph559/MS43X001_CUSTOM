@@ -39,13 +39,15 @@ def prepare(image):
                       "        CMP     R7, #680\n        JMPA    UGT, bad_range\nld_boundary_ok:")
     source = _replace(source, "        MOV     R9, #(COPY_BYTES-4)\n", "        MOV     R9, #(COPY_BYTES-24)\n")
     source = _replace(source, "live_overlay_v8_feature_helpers.inc", "live_overlay_v9_feature_helpers.inc")
-    # Sub 12 sets the watch. It needs no session: it changes nothing the engine reads.
+    # Sub 12 sets the watch and sub 11 logs with the record. They need no session: they change nothing the engine reads.
     source = _replace(source, "h_patch:\n        CMP     R5, #9\n        JMPR    NZ, h_auth\n"
                               "        CMP     R4, #29\n        JMPA    NZ, bad_len\n        JMPA    UC, sub_patch\n",
                       "h_patch:\n        CMP     R5, #9\n        JMPR    NZ, h_watch\n"
                       "        CMP     R4, #29\n        JMPA    NZ, bad_len\n        JMPA    UC, sub_patch\n"
-                      "h_watch:\n        CMP     R5, #12\n        JMPR    NZ, h_auth\n"
-                      "        CMP     R4, #8\n        JMPA    NZ, bad_len\n        JMPA    UC, sub_watch\n")
+                      "h_watch:\n        CMP     R5, #12\n        JMPR    NZ, h_log\n"
+                      "        CMP     R4, #8\n        JMPA    NZ, bad_len\n        JMPA    UC, sub_watch\n"
+                      "h_log:\n        CMP     R5, #11\n        JMPR    NZ, h_auth\n"
+                      "        CMP     R4, #5\n        JMPA    NZ, bad_len\n        JMPA    UC, sub_log\n")
     source = _replace(source, "        CALLA   UC, pops_tick\n", "        CALLA   UC, pops_tick\n        CALLA   UC, watch_quiet\n        CALLA   UC, watch_alias\n")
     # The V9 code goes in the free flash after the CRC tables, below pops' flashed defaults.
     source = _replace(source, "\n; The flashed pops settings",
