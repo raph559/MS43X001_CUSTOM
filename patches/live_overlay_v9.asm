@@ -2451,11 +2451,11 @@ pm_loop:
         INCLUDE "live_overlay_v4_limiter.inc"
 
         INCLUDE "live_overlay_v9_feature_helpers.inc"
-        INCLUDE "live_overlay_v6_feature_stubs.inc"
+        INCLUDE "live_overlay_v9_feature_stubs.inc"
 
         INCLUDE "live_overlay_v7_word_stubs.inc"
 
-        INCLUDE "live_overlay_v8_pops.inc"
+        INCLUDE "live_overlay_v9_pops.inc"
 
 code_end:
 
@@ -3162,6 +3162,7 @@ crc_zero_powers:
         DW      07F11h, 0EC44h
 
         INCLUDE "live_overlay_v9_watch.inc"
+        INCLUDE "live_overlay_v9_triggers.inc"
         IF      $ > 0CFF80h
         ERROR   "the V9 code overruns the pops defaults"
         ENDIF
