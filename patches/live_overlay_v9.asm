@@ -3524,3 +3524,35 @@ data_end:
         JMPS    0Ch, watch_rd6 & 0FFFFh
         ORG     0D043Ah
         JMPS    0Ch, watch_rd7 & 0FFFFh
+        ORG     0D04B0h
+        JMPS    0Ch, watch_ds0 & 0FFFFh
+        ORG     0D05C8h
+        JMPS    0Ch, watch_ds1 & 0FFFFh
+        ORG     0D0776h
+        JMPS    0Ch, watch_ds2 & 0FFFFh
+        ORG     0D089Eh
+        JMPS    0Ch, watch_ds3 & 0FFFFh
+        ORG     0D09BCh
+        JMPS    0Ch, watch_ds4 & 0FFFFh
+        ORG     0D0B60h
+        JMPS    0Ch, watch_ds5 & 0FFFFh
+        ORG     0D0C88h
+        JMPS    0Ch, watch_ds6 & 0FFFFh
+        ORG     0D0EC2h
+        JMPS    0Ch, watch_ds7 & 0FFFFh
+        ORG     0D1092h
+        JMPS    0Ch, watch_ds8 & 0FFFFh
+        ORG     0D06E4h
+        JMPS    0Ch, watch_ds9 & 0FFFFh
+        ORG     0D0AD6h
+        JMPS    0Ch, watch_ds10 & 0FFFFh
+        ORG     0D0DA4h
+        JMPS    0Ch, watch_ds11 & 0FFFFh
+        ORG     0D0E30h
+        JMPS    0Ch, watch_ds12 & 0FFFFh
+        ORG     0D0FE2h
+        JMPS    0Ch, watch_ds13 & 0FFFFh
+        ORG     0D1018h
+        JMPS    0Ch, watch_ds14 & 0FFFFh
+        ORG     0D1052h
+        JMPS    0Ch, watch_ds15 & 0FFFFh

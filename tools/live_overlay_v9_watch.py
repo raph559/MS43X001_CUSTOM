@@ -9,8 +9,16 @@ READERS = [(0x5022A, 2), (0x50262, 2), (0x50454, 2), (0x5042E, 2), (0x50168, 3),
 # The sites V9 patches beyond V8, with the donor's instructions (file offset: name, bytes). Grows task by task.
 PINNED = {site: (f"reader {n} entry", f"C2F{reg}6BFB") for n, (site, reg) in enumerate(READERS)}
 
+# The descriptor lookups' MOV DPP0 sites (file offsets): the nine maps, then the seven curves. 0D:1092 moves R11, not R5.
+DESCRIPTORS = [0x504B0, 0x505C8, 0x50776, 0x5089E, 0x509BC, 0x50B60, 0x50C88, 0x50EC2, 0x51092,
+               0x506E4, 0x50AD6, 0x50DA4, 0x50E30, 0x50FE2, 0x51018, 0x51052]
+PINNED.update({site: (f"descriptor {n} DPP0", "F6FB00FE" if site == 0x51092 else "F6F500FE")
+               for n, site in enumerate(DESCRIPTORS)})
+
 HOOKS = "".join(f"        ORG     0{0x80000 + site:X}h\n        JMPS    0Ch, watch_rd{n} & 0FFFFh\n"
                 for n, (site, _) in enumerate(READERS))
+HOOKS += "".join(f"        ORG     0{0x80000 + site:X}h\n        JMPS    0Ch, watch_ds{n} & 0FFFFh\n"
+                 for n, site in enumerate(DESCRIPTORS))
 
 
 def _replace(text, old, new, count=1):
