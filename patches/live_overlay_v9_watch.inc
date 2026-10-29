@@ -78,6 +78,7 @@ ws_next:
 ws_found:
         MOVB    W_ROWIX, RL2
         MOV     W_WPAGE, R4
+        CALLA   UC, watch_alias
         RET
 
 ; ---- watch_clear: no watch, no live copy, an empty record; uses R4 ----
@@ -914,3 +915,56 @@ wd15_end:
 wd15_stock:
         MOV     0FE00h, R5              ; MOV DPP0, R5
         JMPS    0Dh, 1056h
+
+; ---- watch_alias (Task 4): W_APAGE:W_AOFF is the watched map's live copy, in the readers' form, while its catalogue row
+; holds an allocation; else W_APAGE = 0FFFFh. From housekeeping every 10 ms and from watch_set. Uses R3, R4 ----
+watch_alias:
+        MOV     [-R0], R2
+        MOV     [-R0], R5
+        MOV     R5, #0FFFFh             ; the page: none
+        MOV     R2, W_WPAGE
+        CMP     R2, #0FFFFh
+        JMPR    Z, wa_store
+        EXTP    #3, #1
+        MOV     R2, W_MAGIC
+        CMP     R2, #MAGIC
+        JMPR    NZ, wa_store
+        MOVBZ   R2, W_ROWIX
+        CMP     R2, #0FFh
+        JMPR    Z, wa_store
+        CALLA   UC, entry_addr          ; R3 = its directory record, or 0
+        CMP     R3, #0
+        JMPR    Z, wa_store
+        EXTP    #3, #1
+        MOVB    RL4, [R3+2]             ; the logical offset / 4
+        MOVBZ   R4, RL4
+        SHL     R4, #2
+        MOV     R5, #10h
+        CMP     R4, #704
+        JMPR    ULT, wa_pool_a
+        SUB     R4, #704
+        ADD     R4, #26E0h
+        MOV     R5, #3
+        JMPR    UC, wa_store
+wa_pool_a:
+        ADD     R4, #1D00h
+wa_store:
+        PUSH    0FF10h                  ; PSW
+        BCLR    0FF10h.11               ; IEN off: no hook sees a page with another map's offset
+        MOV     R2, #0FFFFh
+        MOV     W_APAGE, R2
+        MOV     W_AOFF, R4
+        MOV     W_APAGE, R5
+        POP     0FF10h
+        MOV     R5, [R0+]
+        MOV     R2, [R0+]
+        RET
+
+; ---- watch_unalias (Task 4): no live copy for the watch, at once. Load, Free, Revert and every switch-off call it before
+; they change an allocation (RF1); housekeeping finds the copy again within 10 ms. Preserves every register ----
+watch_unalias:
+        MOV     [-R0], R4
+        MOV     R4, #0FFFFh
+        MOV     W_APAGE, R4
+        MOV     R4, [R0+]
+        RET
