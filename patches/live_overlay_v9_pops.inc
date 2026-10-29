@@ -13,7 +13,7 @@ pops_limits:
         DB      128, 210        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, 184 = 11.5, 210 = 10.0)
         DB      50, 219         ; 4 minimum RPM, 32 X
         DB      144, 255        ; 5 minimum coolant, 0.75 X - 48 deg C
-        DB      0, 50           ; 6 throttle opening, 0.1 deg TPS
+        DB      0, 200          ; 6 throttle opening, 0.1 deg TPS (V9: up to 20.0)
         DB      0, 255          ; 7 minimum speed, km/h
 
 ; R3 = byte of group 138. Return R4 = the live or flashed setting, clamped to its limits.
@@ -314,10 +314,21 @@ pops_throttle:
         MOV     R2, R4
         MOV     R3, #6
         CALLA   UC, pops_setting
-        SHL     R4, #1
-        ADD     R4, #(pops_throttle_add & 0FFFFh)
-        EXTS    #0Ch, #1
-        MOV     R4, [R4]
+        MOV     [-R0], R5
+        MOV     R5, R4
+        SHL     R5, #5
+        MOV     R4, R5               ; 32 X
+        SHR     R5, #1
+        ADD     R4, R5               ; + 16 X
+        SHR     R5, #2
+        ADD     R4, R5               ; + 4 X
+        SHR     R5, #1
+        ADD     R4, R5               ; + 2 X
+        SHR     R5, #2
+        ADD     R4, R5               ; + X / 2
+        SHR     R5, #2
+        ADD     R4, R5               ; + X / 8: 54.625 X, 10925 at 20.0 deg TPS
+        MOV     R5, [R0+]
         ADD     R4, R2
         JMPR    NC, pth_sum
         MOV     R4, #0FFFFh
@@ -329,6 +340,3 @@ pth_store:
         MOV     86A4h, R4
         RETS
 
-; 86A4 units added for each 0.1 deg TPS of opening: X * 2731 / 50 (2731 = 5.0 deg TPS as the logger shows it).
-pops_throttle_add:
-        DW      0, 54, 109, 163, 218, 273, 327, 382, 436, 491, 546, 600, 655, 710, 764, 819, 873, 928, 983, 1037, 1092, 1147, 1201, 1256, 1310, 1365, 1420, 1474, 1529, 1583, 1638, 1693, 1747, 1802, 1857, 1911, 1966, 2020, 2075, 2130, 2184, 2239, 2294, 2348, 2403, 2457, 2512, 2567, 2621, 2676, 2731
