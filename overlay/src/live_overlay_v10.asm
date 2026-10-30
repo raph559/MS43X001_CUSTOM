@@ -1,5 +1,6 @@
-; MS43X001 live overlay protocol 10. See docs/live-overlay-v10.md.
-; Built from the pinned car donor; V1/V2 binaries and calibration are preserved.
+; MS43X001 live overlay protocol 10 (V10.2). Build it with ../build_overlay.py on your own MS43X001 bin.
+; Code only: it writes the overlay's free flash block and its hook sites, never the calibration.
+; Copyright (C) 2026 raph559. GPL-3.0, as a modification of MS43X001 (MS4X project, GPL-3.0).
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
 ; Main/AFR/exhaust: 041D00..041FBF; private request: 041FC0..041FD7; limiter: 041FD8..041FDF.
 ; The disabled service monitor must remain disabled. No flash programming occurs at runtime.
@@ -3593,11 +3594,3 @@ data_end:
         JMPS    0Ch, blip_reentry & 0FFFFh
         ORG     0BD4D4h
         JMPS    0Ch, pops_fuel & 0FFFFh
-; V10.2, the owner's choice (2026-11-08): the start's pre-injection, ip_tipr_cst__tco (8 cells over coolant, 0.00533 ms),
-; back to stock X001; the car file has it x 1.6 at every temperature (23.0 ms at 90 deg C, stock 14.4).
-        ORG     0FDE64h
-        DB      062h, 09Dh, 002h, 079h, 033h, 053h, 02Ah, 037h, 00Ah, 027h, 06Bh, 017h, 0DAh, 00Eh, 082h, 00Ah
-; V10.2, the owner's choice (2026-11-08, the injectors stock): c_inj_flow, 16 bits little-endian, cm3/min, back to the
-; X001 release's 237; the car file's 225 came with an E85 edit and adds 5.3 % fuel everywhere on petrol.
-        ORG     0F0E14h
-        DB      0EDh, 000h
