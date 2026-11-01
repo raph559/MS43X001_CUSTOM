@@ -73,5 +73,4 @@ as the full, buildable source.
 
 GPL-3.0, as a modification of MS43X001 (MS4X project,
 [MS43X-Custom-Firmware](https://github.com/ms4x-net/MS43X-Custom-Firmware), GPL-3.0). MS43X001 is
-built on Siemens's MS430069 software, which is not part of this repository. No bin is published. See
-[NOTICE.md](../../NOTICE.md).
+built on Siemens's MS430069 software, which is not part of this repository. No bin is published. See [LICENSE](../LICENSE).
