@@ -39,16 +39,9 @@ into the bin and flash it.
 
 ## How it works
 
-```mermaid
-flowchart LR
-    subgraph FLASH["Flash (your bin)"]
-        FW["MS43X001 code"] -- "216 hook sites<br>jump to the overlay" --> OV["Overlay code<br>in MS43X001's free block<br>0x4B544–0x4FFE6"]
-        CAL["Your calibration<br>0x70000–0x7FFFF<br>(unchanged)"]
-    end
-    OV -- "reads the map<br>from RAM or flash" --> RAM["Live copies<br>in the ECU's RAM"]
-    CAL -. "copied when you<br>pick a map" .-> RAM
-    APP["MS43 Tuner"] -- "DS2 on the K-line<br>checked edits" --> RAM
-```
+<p align="center">
+  <img src="docs/assets/how-it-works.svg" width="100%" alt="How it works: MS43X001's code jumps at 216 hook sites to the overlay in its free flash block, which reads each map's live copy in RAM; your tune stays unchanged, and MS43 Tuner sends checked edits over DS2 on the K-line">
+</p>
 
 - The overlay lives in flash space MS43X001 leaves erased. At each place the firmware reads a supported map, a
   hook jumps to the overlay, which reads the live copy in RAM when it is switched on and the flashed one otherwise.
