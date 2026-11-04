@@ -17,7 +17,7 @@ the source contract.
   parts are `live_overlay_v9_watch.inc` and `live_overlay_v9_triggers.inc`.
 - The new code sits in the free flash after the CRC tables, from `0C:EB5E`, below pops' defaults at
   `0C:FF80`; an assembler guard fails the build if it would reach them. It is inside CRC range 4.
-- Program identity `4543028f…63d4` (the emulator's `ProgramIdentity.Ms43X001LiveOverlayV9`).
+- Program identity `5906167b…69c1` (the emulator's `ProgramIdentity.Ms43X001LiveOverlayV9`).
 
 ## RAM
 
@@ -54,14 +54,19 @@ switches it on (CCM6 = 0655h) on another, so V9 writes no SFR.
   column input, and V7's live word maps (which enter at `0D:04B0`/`09BC` with their RAM copy's address)
   pass through it too. `0D:1092` moves R11, not R5.
 - **Cost** (emulator, full load in 3rd at 100 km/h, cycles per pass through a hooked site; stock 6.0):
-  70.6 before the fast path above, 35.6 now with no watch (3.3 % of the CPU there) and 54.9 watching the
-  part-load ignition map (4.9 %). Each instruction fetched from segment 0C costs about 7 cycles.
+  70.6 before the fast path above, 35.6 now with no watch (3.3 % of the CPU there) and 62.6 watching the
+  part-load ignition map (5.5 %). Each instruction fetched from segment 0C costs about 7 cycles.
 - **Open: P1567 at sustained full load.** On the cross-check drive's full-load hold (3rd, 100 km/h, pedal 95,
   after two minutes of driving) with the logger polling sub 11 at full speed, V9 stores P1567 (`msw_tog`, the
   steering-wheel toggle), with or without a watch; V8 polling `0B B0` does not. Without the logger it no longer
   does (it did before the fast path). There the car file's own lowest queue already waits seconds at the ISM's
   minimum timing (the scheduler check's declared gap), and the toggle check gives 1.7 s. Whether the real ECU is
   that loaded is unknown: a car check decides it.
+- **The emulator runs short of CPU time where the car does not.** A full-throttle pull in 2nd from 30 to
+  88 km/h (past 5,000 rpm) overflows task queues 2 and 3 (`FD84` = `0185h`) on the stock car bin, V8.5 and
+  V9 alike. On the car (2026-11-04, V8.5, several such pulls in one key-on) the fault memory read
+  "no overflow". So the emulator's load is too high for stock too, and V9's P1567 there may be the same
+  shortfall; only a V9 drive on the car settles it.
 - Every record write runs with `IEN` held off (`PUSH PSW`, `BCLR IEN`, `POP PSW`, as stock does at
   `0C:A314`), and the displaced instruction runs last, so every register and flag the original code reads
   is as it left it.
