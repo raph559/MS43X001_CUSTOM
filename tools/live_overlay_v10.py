@@ -1,0 +1,118 @@
+"""V10: the V9 overlay plus pops' throttle stabs and the downshift blip. Generates the V10 assembly from V9's."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+# Groups 138..142 are 8 bytes each from 0C:FF80 (file 0x4FF80): pops, then V10's four (catalogue page 33h).
+DEFAULTS_FILE = 0x4FF80
+POPS_DEFAULTS = bytes([0x00, 0x28, 0x17, 0xB8, 0x32, 0x9E, 0x64, 0x14])   # 4.0 s and a 10.0 deg TPS opening (spec 7.2)
+STAB_DEFAULTS = bytes([0x14, 0x4B, 0x0F, 0x19, 0, 0, 0, 0])
+BLIP_DEFAULTS = bytes([0x00, 0x03, 0x1E, 0xBB, 0x0F, 0x4B, 0x19, 0x5A])
+GEARS_DEFAULTS = bytes([0x01, 0x01, 0x01, 0x00, 0x15, 0x28, 0, 0])
+RATIO_DEFAULTS = bytes([0xE2, 0x86, 0x59, 0x43, 0, 0, 0, 0])
+DEFAULTS = POPS_DEFAULTS + STAB_DEFAULTS + BLIP_DEFAULTS + GEARS_DEFAULTS + RATIO_DEFAULTS
+
+GROUPS = [dict(id=139, name="pops_stabs", address=0xCFF88, bytes=8, flags=2, fields=4),
+          dict(id=140, name="blip", address=0xCFF90, bytes=8, flags=2, fields=8),
+          dict(id=141, name="blip_gears", address=0xCFF98, bytes=8, flags=2, fields=6),
+          dict(id=142, name="blip_ratios", address=0xCFFA0, bytes=8, flags=2, fields=4)]
+
+# V10 patches no site of the stock code beyond V9's: it reuses V8's gate, spark and throttle hooks and housekeeping.
+PINNED = {}
+
+# V10's state, ahead of the pops include that is the first to use it: pool A logical 668..679 (through DPP2), below the
+# watch record, and FDF8 bits 7..13, which no code in the car file or in V9 uses.
+V10_STATE = """; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13.
+POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops window started, saturating
+BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
+BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
+POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current stab or gap
+BLIP_CL         EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
+BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
+BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
+POPS_STAB       BIT     0FDF8h.7        ; a stab is on
+BLIP_ON         BIT     0FDF8h.8        ; a blip is running
+BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
+BLIP_ARMED      BIT     0FDF8h.10       ; the pedal has been below the tap threshold since the clutch went in
+BLIP_TAPPING    BIT     0FDF8h.11       ; the pedal rose past the threshold after the clutch went in
+BLIP_HOLD       BIT     0FDF8h.12       ; the blip has reached its target band (the hold phase)
+GUARD           BIT     0FDF8h.13       ; the torque guard is acting
+
+"""
+
+
+def _replace(text, old, new, count=1):
+    if text.count(old) != count:
+        raise SystemExit(f"V10 generator: expected {count} of {old[:60]!r}, found {text.count(old)}")
+    return text.replace(old, new)
+
+
+def _db(data):
+    return "        DB      " + ", ".join(f"0{b:02X}h" for b in data) + "\n"
+
+
+def prepare(image):
+    """Write patches/live_overlay_v10.asm and its helpers from the V9 sources (run V9's generator first)."""
+    if image[DEFAULTS_FILE + 8:DEFAULTS_FILE + 40] != b"\xFF" * 32:
+        raise SystemExit("V10 generator: the new groups' defaults are not free in the donor")
+    source = (ROOT / "patches/live_overlay_v9.asm").read_text()
+    source = source.replace("protocol 9", "protocol 10").replace("docs/live-overlay-v9.md", "docs/live-overlay-v10.md")
+    source = _replace(source, "OVL_VERSION     EQU     9 ", "OVL_VERSION     EQU     10")
+    source = _replace(source, "N_TABLES        EQU     139", "N_TABLES        EQU     143")
+    source = source.replace("C0D9", "C0DA")
+    # Pool A keeps its last 36 bytes: V10's state (041F9C..041FA7), the watch record and pops' state. No allocation may
+    # reach logical offset 668, and the free space reported to the app is 896 bytes.
+    source = _replace(source, "        CMP     R7, #680\n        JMPA    UGT, bad_range\nld_boundary_ok:",
+                      "        CMP     R7, #668\n        JMPA    UGT, bad_range\nld_boundary_ok:")
+    source = _replace(source, "        MOV     R9, #(COPY_BYTES-24)\n", "        MOV     R9, #(COPY_BYTES-36)\n")
+    source = _replace(source, "live_overlay_v9_feature_helpers.inc", "live_overlay_v10_feature_helpers.inc")
+    source = _replace(source, '"live_overlay_v9_pops.inc"', '"live_overlay_v10_pops.inc"')
+    source = _replace(source, "        DW      0033h, 03F80h, 8, 2 ; 138 pops\n",
+                      "        DW      0033h, 03F80h, 8, 2 ; 138 pops\n"
+                      "        DW      0033h, 03F88h, 8, 2 ; 139 pops stabs\n"
+                      "        DW      0033h, 03F90h, 8, 2 ; 140 downshift blip\n"
+                      "        DW      0033h, 03F98h, 8, 2 ; 141 downshift blip: gears and tap\n"
+                      "        DW      0033h, 03FA0h, 8, 2 ; 142 downshift blip: gear ratios\n")
+    # V10's code goes after V9's, in the free flash below the defaults.
+    source = _replace(source, '        INCLUDE "live_overlay_v9_triggers.inc"\n        IF      $ > 0CFF80h\n'
+                              '        ERROR   "the V9 code overruns the pops defaults"\n',
+                      '        INCLUDE "live_overlay_v9_triggers.inc"\n        INCLUDE "live_overlay_v10_groups.inc"\n'
+                      '        IF      $ > 0CFF80h\n        ERROR   "the V10 code overruns the pops defaults"\n')
+    source = _replace(source, "; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, "
+                              "no throttle, 20 km/h.\n",
+                      "; The flashed pops settings: off, 4.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, "
+                      "10.0 deg TPS, 20 km/h.\n")
+    source = _replace(source, "pops_defaults:\n        DB      000h, 014h, 017h, 0B8h, 032h, 09Eh, 000h, 014h\n",
+                      "pops_defaults:\n" + _db(POPS_DEFAULTS)
+                      + "; 139 pops stabs: a 2.0 s load, +15.0 deg TPS stabs of 150 ms, 250 ms gaps.\n"
+                      + "stab_defaults:\n" + _db(STAB_DEFAULTS)
+                      + "; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 15.0 and 5.0 deg TPS, +10.1 deg.\n"
+                      + "blip_defaults:\n" + _db(BLIP_DEFAULTS)
+                      + "; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s.\n"
+                      + "gears_defaults:\n" + _db(GEARS_DEFAULTS)
+                      + "; 142 its ratios, 0.5 rpm per km/h: 1st 113.0, 2nd 67.0, 3rd 44.5, 4th 33.5.\n"
+                      + "ratio_defaults:\n" + _db(RATIO_DEFAULTS))
+
+    helpers = (ROOT / "patches/live_overlay_v9_feature_helpers.inc").read_text()
+    # Groups 138..142: byte 17 of the allocation index, bit (ID - 136); their flash defaults are 8 bytes apart from 3F80h.
+    helpers = _replace(helpers, "        CMP     R2, #138\n        JMPR    Z, fa_bitmap_pops\n",
+                       "        CMP     R2, #138\n        JMPR    UGE, fa_bitmap_pops\n")
+    helpers = _replace(helpers, "fa_bitmap_pops:\n        EXTP    #3, #1\n        MOVBZ   R4, W_BITMAP+17\n        JNB     R4.2, fa_flash\n",
+                       "fa_bitmap_pops:\n        EXTP    #3, #1\n        MOVBZ   R4, W_BITMAP+17\n        MOV     R3, R2\n"
+                       "        SUB     R3, #136\n        SHR     R4, R3\n        JNB     R4.0, fa_flash\n")
+    helpers = _replace(helpers, "fa_flash:\n        CMP     R2, #138\n        JMPR    NZ, fa_flash_x001\n        MOV     R3, #3F80h\n",
+                       "fa_flash:\n        CMP     R2, #138\n        JMPR    ULT, fa_flash_x001\n        MOV     R3, R2\n"
+                       "        SUB     R3, #138\n        SHL     R3, #3\n        ADD     R3, #3F80h\n")
+    helpers = _replace(helpers, "feature_validate:\n        CMP     R2, #138\n        JMPA    Z, pops_validate\n",
+                       "feature_validate:\n        CMP     R2, #138\n        JMPA    Z, pops_validate\n"
+                       "        JMPA    UGT, v10_validate\n")
+    helpers = _replace(helpers, "feature_write_validate:\n        CMP     R2, #138\n        JMPR    Z, fwv_group\n",
+                       "feature_write_validate:\n        CMP     R2, #138\n        JMPR    UGE, fwv_group\n")
+    helpers = helpers.replace("; R2 = group ID, R3 = byte within its 8-byte span.",
+                              "; R2 = group ID (124..126, 138..142), R3 = byte within its 8-byte span.")
+
+    pops = V10_STATE + (ROOT / "patches/live_overlay_v9_pops.inc").read_text()
+
+    (ROOT / "patches/live_overlay_v10.asm").write_text(source)
+    (ROOT / "patches/live_overlay_v10_feature_helpers.inc").write_text(helpers)
+    (ROOT / "patches/live_overlay_v10_pops.inc").write_text(pops)
