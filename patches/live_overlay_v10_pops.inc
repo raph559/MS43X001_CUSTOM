@@ -148,6 +148,8 @@ pc_switched_on:
         CMP     R2, R4
         JMPR    ULT, pc_done
         JB      0FD2Eh.6, pc_done       ; clutch pressed: the clutch belongs to NLS
+        JB      0FD2Eh.3, pc_done       ; braking: either brake switch
+        JB      0FD2Eh.4, pc_done
         MOV     R2, 0FDF8h
         AND     R2, #7
         JMPR    NZ, pc_done             ; LC, NLS or RAL active
@@ -228,9 +230,19 @@ pops_tick:
         JB      0FD2Ch.12, pt_overrun
         BCLR    0FDF8h.3
         BCLR    POPS_STAB
+        JB      0FD2Eh.6, pt_rearm_done ; the clutch in: not a press that re-arms the pops
         BCLR    0FDF8h.4
+pt_rearm_done:
         RET
 pt_overrun:
+        JB      0FD2Eh.3, pt_brake
+        JNB     0FD2Eh.4, pt_no_brake
+pt_brake:
+        BSET    0FDF8h.4                ; braking uses up this lift's pops
+        BCLR    0FDF8h.3
+        BCLR    POPS_STAB
+        RET
+pt_no_brake:
         JNB     0FDF8h.3, pt_done
         MOV     R4, POPS_LEFT
         CMP     R4, #0
