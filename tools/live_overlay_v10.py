@@ -112,6 +112,9 @@ def prepare(image):
                               "; R2 = group ID (124..126, 138..142), R3 = byte within its 8-byte span.")
 
     pops = V10_STATE + (ROOT / "patches/live_overlay_v9_pops.inc").read_text()
+    # Task 4, the torque guard: housekeeping runs it right after pops_tick, every 10 ms.
+    source = _replace(source, "        CALLA   UC, pops_tick\n        CALLA   UC, watch_quiet\n",
+                      "        CALLA   UC, pops_tick\n        CALLA   UC, guard_tick\n        CALLA   UC, watch_quiet\n")
     # Task 2, the stabs: a window's start resets the phases; the tick runs them while every condition holds; every way a
     # window ends clears POPS_STAB; the throttle store adds the stab's extra while POPS_STAB is set and GUARD is clear.
     source = _replace(source, '        INCLUDE "live_overlay_v10_groups.inc"\n',

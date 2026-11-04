@@ -75,3 +75,25 @@ st_count:
 st_off:
         BCLR    POPS_STAB
         RET
+
+; ---- the torque guard, every 10 ms from housekeeping right after pops_tick. While a pops window or a blip runs,
+; GUARD is set when the monitoring's torque estimate (8013) is more than 10 above the permitted torque (86AD): both
+; bytes are 2 Nm, so 20 Nm short of the monitoring's fault threshold, ip_tqi_dif_max_mon = 40 Nm (0D:2534). The guard
+; only ever lowers an addition: pops_throttle leaves out a stab's extra, and the blip's addition, while it is set.
+; Changes R3, R4 and PSW (housekeeping saves R3 and R4). ----
+guard_tick:
+        JB      0FDF8h.3, gt_watch
+        JB      BLIP_ON, gt_watch
+        BCLR    GUARD
+        RET
+gt_watch:
+        MOVBZ   R3, 86ADh
+        ADD     R3, #10
+        MOVBZ   R4, 8013h
+        CMP     R4, R3
+        JMPR    UGT, gt_on
+        BCLR    GUARD
+        RET
+gt_on:
+        BSET    GUARD
+        RET
