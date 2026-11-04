@@ -1018,6 +1018,7 @@ hk:
         MOV     [-R0], R4
         CALLA   UC, pops_tick
         CALLA   UC, guard_tick
+        CALLA   UC, blip_tick
         CALLA   UC, watch_quiet
         CALLA   UC, watch_alias
         EXTP    #3, #1
