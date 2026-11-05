@@ -251,3 +251,29 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   - In the emulator at 125,000 baud the log keeps 14.85 rows a second against sub 11's 16.67 alone on the same drive,
     with no gap between rows over 120 ms (the first V10.1 build read FD2C and FD2E as well, two reads a half-second and
     the fault memory in one go: 12.89 a second, with a 380 ms hole every 20 s).
+
+### V10.1's verification (2026-11-05, in the emulator)
+
+- **Direct CPU tests:** `OverlayV10Tests` (the header word, V10.1's defaults, the new limits and their clamps, the AFR
+  to 255, V10.1 known beside the sent V10), `PopsStabTests` (the rise once stabbing at the tick and at the real gate,
+  160 rpm during the load and with no stab size), `BlipTests` (the lead against 0 and 5, the filtered rate with every
+  register kept, a gear outside 2..5, `BLIP_ON` seen only with its values in place, 20 °TPS) and `BlipHookTests` (the
+  blip's re-entry path leaves `FD9A`, every register and the PSW as a stock pass does). V10's earlier tests run V10.1's
+  code with V10's settings pinned (`V10Fixture.Classic`) and keep their numbers.
+- **Drives** (`V10DriveTests`): V10's drives as before; V10.1's own pops (`pops-v101`: 3rd at 120 km/h, one 4.0 s
+  window, five 5.0 °TPS stabs on 3.0, the spark decided at −23.625°); a slope (`pops-downhill-v101`: about 270 rpm of
+  rise once stabbing keeps a 4.0 s window, and ends it with 139/4 = 5); a braking blip at 20.0 °TPS; no new fault on
+  any of them.
+- **Against the sent V10, the switches off** (`build/compare-v10-v101`): no behaviour difference on any of the seven
+  drives; full-load fails the injector check on both bins, as V9 to V10.
+- **CPU cost** (`V10CostTests`): a housekeeping pass takes 3,218 cycles in a stab window (V10: 2,456) and 3,039 during a
+  blip; a gate pass inside a window 2,352 cycles, about 100 a second, 0.98 % of the CPU; at full load with the switches
+  off V10.1 is V10 (1,162 cycles a pass) and overflows the same queues as V9.
+- **The app against the firmware** (`app/tools/OverlayV10Integration`, the production client at 125,000 baud): stabs,
+  blip, fallback, rate and queues as on V10, at V10.1's settings; `log` puts the app's diagnostic columns through the
+  stabs lift (the window and the stabs show in `pops_window` and `pops_stab`, the faults column is the emulator's list);
+  `log-plain` and `log-plain-off` show that this lift with sub 11 logging overflows queues 2 and 3 (`FD84` = `0185h`)
+  with or without the columns and with pops off: V9's open question, not V10.1's.
+- **Suites:** the emulator 1,932 of 1,934 before the gate fix (the two V1 quick-key-cycle failures, as always), and
+  after it every chunk that runs the V10 image (overlay 349, pops 318, watch 136, v10 166); the app Core 737/737 and
+  UI 764/764, in chunks.
