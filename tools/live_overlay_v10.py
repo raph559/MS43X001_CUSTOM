@@ -17,8 +17,15 @@ GROUPS = [dict(id=139, name="pops_stabs", address=0xCFF88, bytes=8, flags=2, fie
           dict(id=141, name="blip_gears", address=0xCFF98, bytes=8, flags=2, fields=6),
           dict(id=142, name="blip_ratios", address=0xCFFA0, bytes=8, flags=2, fields=4)]
 
-# V10 patches no site of the stock code beyond V9's: it reuses V8's gate, spark and throttle hooks and housekeeping.
-PINNED = {}
+# V10 reuses V8's gate, spark and throttle hooks and housekeeping, and adds one site (Task 7's finding): the in-cut handler
+# (0A:A9EE) re-checks the engine speed at 0A:AAA0 and refuels only below the re-entry rpm, so a blip that starts during a
+# running cut takes the stock re-entry at once (file offset: name, the donor's instruction).
+PINNED = {0x2AAA0: ("in-cut re-entry check", "2A244D2B")}
+
+HOOKS = """
+        ORG     0AAAA0h
+        JMPS    0Ch, blip_reentry & 0FFFFh
+"""
 
 # V10's state, ahead of the pops include that is the first to use it: pool A logical 668..679 (through DPP2), below the
 # watch record, and FDF8 bits 7..13, which no code in the car file or in V9 uses.
@@ -111,6 +118,7 @@ def prepare(image):
     helpers = helpers.replace("; R2 = group ID, R3 = byte within its 8-byte span.",
                               "; R2 = group ID (124..126, 138..142), R3 = byte within its 8-byte span.")
 
+    source += HOOKS
     pops = V10_STATE + (ROOT / "patches/live_overlay_v9_pops.inc").read_text()
     # Task 4, the torque guard: housekeeping runs it right after pops_tick, every 10 ms.
     source = _replace(source, "        CALLA   UC, pops_tick\n        CALLA   UC, watch_quiet\n",

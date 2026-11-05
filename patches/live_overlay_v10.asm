@@ -3588,3 +3588,6 @@ data_end:
         JMPS    0Ch, watch_ds14 & 0FFFFh
         ORG     0D1052h
         JMPS    0Ch, watch_ds15 & 0FFFFh
+
+        ORG     0AAAA0h
+        JMPS    0Ch, blip_reentry & 0FFFFh
