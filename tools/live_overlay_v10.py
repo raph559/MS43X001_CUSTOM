@@ -1,14 +1,20 @@
-"""V10: the V9 overlay plus pops' throttle stabs and the downshift blip. Generates the V10 assembly from V9's."""
+"""V10.1: the V9 overlay plus pops' throttle stabs and the downshift blip. Generates the V10 assembly from V9's.
+
+V10.1 (2026-11-05, after the first car test) is V10 with new defaults, the rise allowed once stabbing (139 byte 4),
+the blip lead (141 byte 6), a pops AFR target down to 7.4 and three minors from V10's review. The header's version word
+is 010Ah: the low byte stays 10, so every V10 rule holds, and the high byte is the minor (V8.5's way)."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 # Groups 138..142 are 8 bytes each from 0C:FF80 (file 0x4FF80): pops, then V10's four (catalogue page 33h).
 DEFAULTS_FILE = 0x4FF80
-POPS_DEFAULTS = bytes([0x00, 0x28, 0x17, 0xB8, 0x32, 0x9E, 0x64, 0x14])   # 4.0 s and a 10.0 deg TPS opening (spec 7.2)
-STAB_DEFAULTS = bytes([0x14, 0x4B, 0x0F, 0x19, 0, 0, 0, 0])
-BLIP_DEFAULTS = bytes([0x00, 0x03, 0x1E, 0xBB, 0x0F, 0x4B, 0x19, 0x5A])
-GEARS_DEFAULTS = bytes([0x01, 0x01, 0x01, 0x00, 0x15, 0x28, 0, 0])
+# V10.1's defaults (owner, 2026-11-05: "put it by default plz", "do it by default"): pops at -23.625 deg, AFR 9.99,
+# 4,000 rpm and 3.0 deg TPS with 5.0 deg TPS stabs and a 480 rpm rise once stabbing; a 20.0 deg TPS blip, a 150 ms lead.
+POPS_DEFAULTS = bytes([0x00, 0x28, 0x00, 0xD2, 0x7D, 0x9E, 0x1E, 0x14])
+STAB_DEFAULTS = bytes([0x14, 0x19, 0x0F, 0x19, 0x0F, 0, 0, 0])
+BLIP_DEFAULTS = bytes([0x00, 0x03, 0x1E, 0xBB, 0x0F, 0x64, 0x19, 0x5A])
+GEARS_DEFAULTS = bytes([0x01, 0x01, 0x01, 0x00, 0x15, 0x28, 0x0F, 0])
 RATIO_DEFAULTS = bytes([0xE2, 0x86, 0x59, 0x43, 0, 0, 0, 0])
 DEFAULTS = POPS_DEFAULTS + STAB_DEFAULTS + BLIP_DEFAULTS + GEARS_DEFAULTS + RATIO_DEFAULTS
 
@@ -29,7 +35,8 @@ HOOKS = """
 
 # V10's state, ahead of the pops include that is the first to use it: pool A logical 668..679 (through DPP2), below the
 # watch record, and FDF8 bits 7..13, which no code in the car file or in V9 uses.
-V10_STATE = """; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13.
+V10_STATE = """; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13; FDF8.14 and
+; FDF8.15 belong to the car file.
 POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops window started, saturating
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
@@ -37,6 +44,8 @@ POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current 
 BLIP_CL         EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
+BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
+BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
 POPS_STAB       BIT     0FDF8h.7        ; a stab is on
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
 BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
@@ -66,6 +75,7 @@ def prepare(image):
     source = source.replace("protocol 9", "protocol 10").replace("docs/live-overlay-v9.md", "docs/live-overlay-v10.md")
     source = _replace(source, "OVL_VERSION     EQU     9 ", "OVL_VERSION     EQU     10")
     source = _replace(source, "N_TABLES        EQU     139", "N_TABLES        EQU     143")
+    source = _replace(source, "        DW      OVL_VERSION\n", "        DW      OVL_VERSION + 0100h     ; V10.1: the high byte is the minor\n")
     source = source.replace("C0D9", "C0DA")
     # Pool A keeps its last 36 bytes: V10's state (041F9C..041FA7), the watch record and pops' state. No allocation may
     # reach logical offset 668, and the free space reported to the app is 896 bytes.
@@ -87,15 +97,15 @@ def prepare(image):
                       '        IF      $ > 0CFF80h\n        ERROR   "the V10 code overruns the pops defaults"\n')
     source = _replace(source, "; The flashed pops settings: off, 2.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, "
                               "no throttle, 20 km/h.\n",
-                      "; The flashed pops settings: off, 4.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, "
-                      "10.0 deg TPS, 20 km/h.\n")
+                      "; The flashed pops settings: off, 4.0 s, -23.625 deg, 9.99 AFR (210), 4,000 rpm, 70.5 deg C, "
+                      "3.0 deg TPS, 20 km/h.\n")
     source = _replace(source, "pops_defaults:\n        DB      000h, 014h, 017h, 0B8h, 032h, 09Eh, 000h, 014h\n",
                       "pops_defaults:\n" + _db(POPS_DEFAULTS)
-                      + "; 139 pops stabs: a 2.0 s load, +15.0 deg TPS stabs of 150 ms, 250 ms gaps.\n"
+                      + "; 139 pops stabs: a 2.0 s load, +5.0 deg TPS stabs of 150 ms, 250 ms gaps, a 480 rpm rise once stabbing.\n"
                       + "stab_defaults:\n" + _db(STAB_DEFAULTS)
-                      + "; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 15.0 and 5.0 deg TPS, +10.1 deg.\n"
+                      + "; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 20.0 and 5.0 deg TPS, +10.1 deg.\n"
                       + "blip_defaults:\n" + _db(BLIP_DEFAULTS)
-                      + "; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s.\n"
+                      + "; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s; a 150 ms lead.\n"
                       + "gears_defaults:\n" + _db(GEARS_DEFAULTS)
                       + "; 142 its ratios, 0.5 rpm per km/h: 1st 113.0, 2nd 67.0, 3rd 44.5, 4th 33.5.\n"
                       + "ratio_defaults:\n" + _db(RATIO_DEFAULTS))
@@ -129,6 +139,16 @@ def prepare(image):
     # window ends clears POPS_STAB; the throttle store adds the stab's extra while POPS_STAB is set and GUARD is clear.
     source = _replace(source, '        INCLUDE "live_overlay_v10_groups.inc"\n',
                       '        INCLUDE "live_overlay_v10_groups.inc"\n        INCLUDE "live_overlay_v10_blip.inc"\n')
+    # V10.1: the pops AFR target reaches 255 (lambda 0.504, AFR 7.4) through the same shared rich path, a byte throughout.
+    pops = _replace(pops, "        DB      128, 210        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, "
+                          "184 = 11.5, 210 = 10.0)\n",
+                    "        DB      128, 255        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, "
+                    "184 = 11.5, 255 = 7.4)\n")
+    # V10.1, the rise once stabbing: a stab adds about 200 rpm on the car (2026-11-05), so V8's 160 rpm rule ended each
+    # window after one or two stabs. rise_allowance keeps 160 rpm during the load and uses 139 byte 4 once stabbing.
+    pops = _replace(pops, "        MOV     R5, R4\n        ADD     R5, #5\n        CMP     R3, R5\n",
+                    "        MOV     R5, R4\n        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing\n"
+                    "        CMP     R3, R5\n")
     pops = _replace(pops, "        MOV     POPS_LEFT, R4\n        MOVB    RL4, 807Fh\n",
                     "        MOV     POPS_LEFT, R4\n        CALLA   UC, stab_start\n        MOVB    RL4, 807Fh\n")
     pops = _replace(pops, "pg_end:\n        BCLR    0FDF8h.3\n", "pg_end:\n        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n")

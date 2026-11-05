@@ -1,4 +1,5 @@
-; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13.
+; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13; FDF8.14 and
+; FDF8.15 belong to the car file.
 POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops window started, saturating
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
@@ -6,6 +7,8 @@ POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current 
 BLIP_CL         EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
+BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
+BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
 POPS_STAB       BIT     0FDF8h.7        ; a stab is on
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
 BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
@@ -26,7 +29,7 @@ pops_limits:
         DB      0, 2            ; 0 switch: 0 off, 1 always on, 2 cruise control ready; or 80h..9Fh, a CAN bit (pops_conditions)
         DB      1, 50           ; 1 duration, 0.1 s
         DB      0, 255          ; 2 ignition angle, 0.375 X - 23.625 deg BTDC
-        DB      128, 210        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, 184 = 11.5, 210 = 10.0)
+        DB      128, 255        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, 184 = 11.5, 255 = 7.4)
         DB      50, 219         ; 4 minimum RPM, 32 X
         DB      144, 255        ; 5 minimum coolant, 0.75 X - 48 deg C
         DB      0, 200          ; 6 throttle opening, 0.1 deg TPS (V9: up to 20.0)
@@ -260,7 +263,7 @@ pt_no_brake:
         MOVBZ   R4, POPS_MIN
         MOVBZ   R3, 807Fh
         MOV     R5, R4
-        ADD     R5, #5
+        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing
         CMP     R3, R5
         JMPR    ULT, pt_no_rise
         MOV     R2, #0                  ; the engine is pushing, or the car is speeding up

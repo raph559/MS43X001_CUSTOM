@@ -48,7 +48,7 @@ REP_DATA        EQU     0F750h
         ORG     0CB544h
 
 header: DB      "LTOV"                  ; the signature the app reads with DS2 command 06 at 0C:B544
-        DW      OVL_VERSION
+        DW      OVL_VERSION + 0100h     ; V10.1: the high byte is the minor
         DW      code_start & 0FFFFh
         DW      code_end & 0FFFFh
         DW      data_end & 0FFFFh
@@ -3175,19 +3175,19 @@ crc_zero_powers:
         ERROR   "the V10 code overruns the pops defaults"
         ENDIF
 
-; The flashed pops settings: off, 4.0 s, -15.0 deg, 11.5 AFR (184), 1,600 rpm, 70.5 deg C, 10.0 deg TPS, 20 km/h.
+; The flashed pops settings: off, 4.0 s, -23.625 deg, 9.99 AFR (210), 4,000 rpm, 70.5 deg C, 3.0 deg TPS, 20 km/h.
         ORG     0CFF80h
 pops_defaults:
-        DB      000h, 028h, 017h, 0B8h, 032h, 09Eh, 064h, 014h
-; 139 pops stabs: a 2.0 s load, +15.0 deg TPS stabs of 150 ms, 250 ms gaps.
+        DB      000h, 028h, 000h, 0D2h, 07Dh, 09Eh, 01Eh, 014h
+; 139 pops stabs: a 2.0 s load, +5.0 deg TPS stabs of 150 ms, 250 ms gaps, a 480 rpm rise once stabbing.
 stab_defaults:
-        DB      014h, 04Bh, 00Fh, 019h, 000h, 000h, 000h, 000h
-; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 15.0 and 5.0 deg TPS, +10.1 deg.
+        DB      014h, 019h, 00Fh, 019h, 00Fh, 000h, 000h, 000h
+; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 20.0 and 5.0 deg TPS, +10.1 deg.
 blip_defaults:
-        DB      000h, 003h, 01Eh, 0BBh, 00Fh, 04Bh, 019h, 05Ah
-; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s.
+        DB      000h, 003h, 01Eh, 0BBh, 00Fh, 064h, 019h, 05Ah
+; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s; a 150 ms lead.
 gears_defaults:
-        DB      001h, 001h, 001h, 000h, 015h, 028h, 000h, 000h
+        DB      001h, 001h, 001h, 000h, 015h, 028h, 00Fh, 000h
 ; 142 its ratios, 0.5 rpm per km/h: 1st 113.0, 2nd 67.0, 3rd 44.5, 4th 33.5.
 ratio_defaults:
         DB      0E2h, 086h, 059h, 043h, 000h, 000h, 000h, 000h
