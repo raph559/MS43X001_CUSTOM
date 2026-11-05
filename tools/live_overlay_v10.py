@@ -149,6 +149,11 @@ def prepare(image):
     pops = _replace(pops, "        MOV     R5, R4\n        ADD     R5, #5\n        CMP     R3, R5\n",
                     "        MOV     R5, R4\n        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing\n"
                     "        CMP     R3, R5\n")
+    # The overrun-cut gate checks the rise too, on every request of the stock cut (the V10.1 review): it ended every
+    # stabbing window at 160 rpm until it used the same allowance. R5 is free there once the conditions are checked.
+    pops = _replace(pops, "        MOV     R2, R4\n        ADD     R2, #5\n        CMP     R3, R2\n        JMPR    UGE, pg_end",
+                    "        MOV     R5, R4\n        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing\n"
+                    "        CMP     R3, R5\n        JMPR    UGE, pg_end")
     pops = _replace(pops, "        MOV     POPS_LEFT, R4\n        MOVB    RL4, 807Fh\n",
                     "        MOV     POPS_LEFT, R4\n        CALLA   UC, stab_start\n        MOVB    RL4, 807Fh\n")
     pops = _replace(pops, "pg_end:\n        BCLR    0FDF8h.3\n", "pg_end:\n        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n")
