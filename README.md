@@ -10,7 +10,7 @@ It lets [MS43 Tuner](https://github.com/raph559/MS43_TUNER) send maps and settin
 K-line, and adds pops & bangs on lift-off and an automatic downshift blip.
 
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
-[![Version: V10.2](https://img.shields.io/badge/overlay-V10.2-orange.svg)](overlay)
+[![Version: V10.3](https://img.shields.io/badge/overlay-V10.3-orange.svg)](overlay)
 [![Firmware: MS43X001](https://img.shields.io/badge/firmware-MS43X001%20(M54B25)-555.svg)](#compatibility)
 
 [What it adds](#what-it-adds) · [How it works](#how-it-works) · [Build your bin](#build-your-bin) · [Compatibility](#compatibility) · [Repository](#whats-in-this-repository)
@@ -64,7 +64,7 @@ cd MS43X001_CUSTOM/overlay
 python -I build_overlay.py path/to/your_ms43x001.bin
 ```
 
-It writes `your_ms43x001-live-overlay-v10_2.bin` next to your bin, which it only reads. Flash the result with MS4X
+It writes `your_ms43x001-live-overlay-v10_3.bin` next to your bin, which it only reads. Flash the result with MS4X
 Flasher, then open it in MS43 Tuner: the Live tuning and Fun tabs find the overlay. The options and every check
 the build makes are in [overlay/README.md](overlay/README.md).
 
@@ -85,7 +85,7 @@ The calibration can be anything: your own tune is kept as it is.
 
 | Path | What |
 |:---|:---|
-| [`overlay/`](overlay) | **The current version (V10.2) and its code-only build.** Start here. |
+| [`overlay/`](overlay) | **The current version (V10.3) and its code-only build.** Start here. |
 | [`patches/`](patches) | Earlier versions' assembly |
 | [`tools/`](tools) | The lab's generators and builders for each version |
 | [`docs/`](docs), [`LIVE_OVERLAY.md`](LIVE_OVERLAY.md), [`OVERLAY_BUILD.md`](OVERLAY_BUILD.md) | Each version's design, protocol and test records |

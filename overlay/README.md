@@ -1,4 +1,4 @@
-# The live-tuning overlay (V10.2)
+# The live-tuning overlay (V10.3)
 
 A small add-on to **MS43X001**, the MS4X project's custom firmware for the Siemens MS43. It lives in
 MS43X001's free flash space and lets MS43 Tuner change maps and settings in the ECU's RAM over DS2 on
@@ -17,7 +17,7 @@ and flash it.
   app writes them, and can switch between them and the flashed ones at once.
 - **Live settings:** the rev limiter, and MS43X001's own launch control, no-lift shift and rolling
   anti-lag settings.
-- **Pops & bangs** on lift-off, with a real AFR target.
+- **Pops & bangs** on lift-off, with a real AFR target and the throttle held at its set opening.
 - **A downshift blip:** an automatic rev-match on braking downshifts, with a spark cap above the target
   engine speed.
 - **Switch triggers:** pops and the blip can follow cruise control armed, ASC off or A/C on.
@@ -54,9 +54,9 @@ python -I build_overlay.py YOUR.bin
 
 - With `asl` on PATH it runs natively. Otherwise give its folder with `--asl-dir`; on Windows without a
   native AS, the build runs it in WSL (`--wsl`, default `Ubuntu-24.04`), and `--asl-dir` is a WSL path.
-- `--out OUT.bin` names the result; the default is `YOUR-live-overlay-v10_2.bin`.
+- `--out OUT.bin` names the result; the default is `YOUR-live-overlay-v10_3.bin`.
 - The build prints the program identity of the result. For V10.2 it is
-  `b8bafce5f10d2b26a8095d7a71be094a634145bfd7a431bcc36c536c05de7173` on any supported bin, since the
+  `b7f5979312951b091c019e2d433b32e01de2c001e861f63ffae679c646603440` on any supported bin, since the
   identity covers the program code only.
 
 Flash the result with MS4X Flasher, as any bin. Then open it in MS43 Tuner: the Live tuning and Fun tabs

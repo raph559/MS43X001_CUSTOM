@@ -1,8 +1,5 @@
-; V10's pops stabs, torque guard and downshift blip (docs/live-overlay-v10.md). The state is at the top of the pops
-; include; the settings are groups 139..142, read through v10_setting.
-
-; ---- the pops stabs: after the load, the throttle addition alternates a stab (the opening plus the stab size) and a
-; gap (the opening), on the 10 ms tick. pops_throttle adds the stab's extra while POPS_STAB is set. ----
+; V10's torque guard and downshift blip (docs/live-overlay-v10.md). The state is at the top of the pops include; the
+; settings are groups 140..142, read through v10_setting. V10.3: V10.2's pops stabs are gone, and group 139 is reserved.
 
 ; R4 = an opening in 0.2 deg TPS steps. Return R4 = its 86A4 units: 54.625 (2X) by V8.5's shifts, 16387 at 30.0 deg
 ; TPS. Preserves every other register; changes PSW.
@@ -24,104 +21,10 @@ opening_units:
         MOV     R5, [R0+]
         RET
 
-; From pops_gate when a window starts: the load begins. Preserves every register; changes PSW.
-stab_start:
-        MOV     [-R0], R4
-        MOV     R4, #0
-        MOV     POPS_T, R4
-        MOVB    POPS_PH, RL4
-        MOVB    POPS_STABS, RL4         ; V10.1: no stab yet in this window
-        BCLR    POPS_STAB
-        MOV     R4, [R0+]
-        RET
-
-; From pops_tick every 10 ms while a window runs and every condition holds. After 10 x the load time (0.1 s), each
-; phase lasts its own setting: a stab the stab length, a gap the gap. A stab size of 0 means no stab. Changes R2..R5
-; and PSW (pops_tick saves R2 and R5, housekeeping R3 and R4).
-stab_tick:
-        MOV     R4, POPS_T
-        CMP     R4, #0FFFFh
-        JMPR    Z, st_counted
-        ADD     R4, #1
-        MOV     POPS_T, R4
-st_counted:
-        MOV     R2, #139
-        MOV     R3, #1
-        CALLA   UC, v10_setting         ; the stab size
-        CMP     R4, #0
-        JMPR    Z, st_off
-        MOV     R3, #0
-        CALLA   UC, v10_setting         ; the load time
-        MOV     R5, R4
-        SHL     R5, #3
-        ADD     R5, R4
-        ADD     R5, R4                  ; 10 X ticks
-        MOV     R4, POPS_T
-        CMP     R4, R5
-        JMPR    ULE, st_off             ; still loading
-        MOVB    RL4, POPS_PH
-        JMPR    NZ, st_count
-        MOV     R3, #2                  ; a stab follows the load or a gap
-        JNB     POPS_STAB, st_toggle
-        MOV     R3, #3                  ; a gap follows a stab
-st_toggle:
-        BMOVN   POPS_STAB, POPS_STAB
-        JNB     POPS_STAB, st_length
-        MOVB    RL4, POPS_STABS         ; V10.1: a stab begins; the log reads the count, up to 255
-        CMPB    RL4, #255
-        JMPR    Z, st_length
-        ADDB    RL4, #1
-        MOVB    POPS_STABS, RL4
-st_length:
-        CALLA   UC, v10_setting         ; the new phase's length, 10 ms
-        MOVB    POPS_PH, RL4
-st_count:
-        MOVB    RL4, POPS_PH
-        SUBB    RL4, #1
-        MOVB    POPS_PH, RL4
-        RET
-st_off:
-        BCLR    POPS_STAB
-        RET
-
-; From pops_tick's rise check, V10.1: R5 = the lowest engine speed in the window (807F units). Return R5 = the engine
-; speed that ends the window: 5 above the lowest (160 rpm, V8's rule) during the load, or 139 byte 4 above it once the
-; stabs have begun (POPS_T past 10 x the load time, with a stab size above 0); on the car a stab adds about 200 rpm.
-; Preserves every other register; changes PSW.
-rise_allowance:
-        MOV     [-R0], R2
-        MOV     [-R0], R3
-        MOV     [-R0], R4
-        MOV     R2, #139
-        MOV     R3, #1
-        CALLA   UC, v10_setting         ; the stab size
-        CMP     R4, #0
-        JMPR    Z, ra_load              ; no stabs: V8's rule for the whole window
-        MOV     R3, #0
-        CALLA   UC, v10_setting         ; the load time, 0.1 s
-        MOV     R3, R4
-        SHL     R3, #3
-        ADD     R3, R4
-        ADD     R3, R4                  ; 10 X ticks
-        MOV     R4, POPS_T
-        CMP     R4, R3
-        JMPR    ULE, ra_load            ; still loading
-        MOV     R3, #4
-        CALLA   UC, v10_setting         ; the rise allowed once stabbing, 32 rpm (5..31)
-        ADD     R5, R4
-        JMPR    UC, ra_done
-ra_load:
-        ADD     R5, #5
-ra_done:
-        MOV     R4, [R0+]
-        MOV     R3, [R0+]
-        MOV     R2, [R0+]
-        RET
-
 ; ---- the torque guard, every 10 ms from housekeeping right after pops_tick. While a pops window or a blip runs,
 ; GUARD is set when the monitoring's torque estimate (8013) is more than 10 above the permitted torque (86AD): both
 ; bytes are 2 Nm, so 20 Nm short of the monitoring's fault threshold, ip_tqi_dif_max_mon = 40 Nm (0D:2534). The guard
-; only ever lowers an addition: pops_throttle leaves out a stab's extra, and the blip's addition, while it is set.
+; only ever lowers an addition: pops_throttle leaves out the blip's addition while it is set.
 ; Changes R3, R4 and PSW (housekeeping saves R3 and R4). ----
 guard_tick:
         JB      0FDF8h.3, gt_watch
