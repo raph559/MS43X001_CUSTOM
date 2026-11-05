@@ -155,6 +155,29 @@ def prepare(image):
                     "pt_brake:\n        BSET    0FDF8h.4                ; braking uses up this lift's pops\n"
                     "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n        RET\n"
                     "pt_no_brake:\n        JNB     0FDF8h.3, pt_done\n")
+    # Task 6, the blip's outputs. A pops window and a blip never overlap (the blip needs FDF8.3 clear, and the clutch
+    # ends a window), so each hook checks the blip first. The throttle store adds BLIP_ADD while GUARD is clear; the gate
+    # holds the overrun cut off, with every register as it came; the spark call fires at 140's angle in fuelled overrun.
+    pops = _replace(pops, "pops_throttle:\n        JNB     0FDF8h.3, pth_store\n",
+                    "pops_throttle:\n        JB      BLIP_ON, pth_blip\n        JNB     0FDF8h.3, pth_store\n")
+    pops = _replace(pops, "pth_store:\n        MOV     86A4h, R4\n        RETS\n",
+                    "pth_store:\n        MOV     86A4h, R4\n        RETS\n"
+                    "pth_blip:\n        JB      GUARD, pth_store\n        PUSH    0FF10h                  ; PSW\n"
+                    "        ADD     R4, BLIP_ADD\n        JMPR    NC, pth_blip_sum\n        MOV     R4, #0FFFFh\n"
+                    "pth_blip_sum:\n        POP     0FF10h                  ; PSW\n        MOV     86A4h, R4\n        RETS\n")
+    pops = _replace(pops, "pg_request:\n        PUSH    0FF10h                  ; PSW\n",
+                    "pg_request:\n        JNB     BLIP_ON, pg_pops\n        JMPS    0Ah, 0B0F2h             ; a blip holds the overrun cut off\n"
+                    "pg_pops:\n        PUSH    0FF10h                  ; PSW\n")
+    pops = _replace(pops, "pops_spark:\n        JNB     0FDF8h.3, psk_stock\n",
+                    "pops_spark:\n        JB      BLIP_ON, psk_blip\n        JNB     0FDF8h.3, psk_stock\n")
+    pops = _replace(pops, "psk_stock:\n        JMPS    0Bh, 05C84h\n",
+                    "psk_stock:\n        JMPS    0Bh, 05C84h\n"
+                    "psk_blip:\n        JNB     0FD2Ch.11, psk_stock\n        PUSH    0FF10h                  ; PSW\n"
+                    "        MOV     [-R0], R2\n        MOV     [-R0], R3\n        MOV     [-R0], R4\n"
+                    "        MOV     R2, #140\n        MOV     R3, #7\n        CALLA   UC, v10_setting         ; the blip's own spark angle\n"
+                    "        MOVB    0E2B5h, RL4\n        MOV     R4, #0\n        MOVB    0E2B4h, RL4\n"
+                    "        MOV     R4, [R0+]\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n        POP     0FF10h                  ; PSW\n"
+                    "        JMPS    0Bh, 05C84h\n")
 
     (ROOT / "patches/live_overlay_v10.asm").write_text(source)
     (ROOT / "patches/live_overlay_v10_feature_helpers.inc").write_text(helpers)

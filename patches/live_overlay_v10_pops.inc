@@ -164,6 +164,9 @@ pops_gate:
         JB      0FD30h.2, pg_request
         JMPS    0Ah, 0B0F2h
 pg_request:
+        JNB     BLIP_ON, pg_pops
+        JMPS    0Ah, 0B0F2h             ; a blip holds the overrun cut off
+pg_pops:
         PUSH    0FF10h                  ; PSW
         MOV     [-R0], R2
         MOV     [-R0], R3
@@ -298,6 +301,7 @@ pg_skip:
 ; ---- the spark call (0A:D424, CALLS 0Bh, 5C84h): during a window the angle is the setting, written where the
 ; per-cylinder angles are taken from (E2B5, the encoding of ip_iga_puc). Knock retard is not applied in overrun. ----
 pops_spark:
+        JB      BLIP_ON, psk_blip
         JNB     0FDF8h.3, psk_stock
         JNB     0FD2Ch.11, psk_stock
         PUSH    0FF10h                  ; PSW
@@ -312,6 +316,23 @@ pops_spark:
         MOV     R3, [R0+]
         POP     0FF10h                  ; PSW
 psk_stock:
+        JMPS    0Bh, 05C84h
+psk_blip:
+        JNB     0FD2Ch.11, psk_stock
+        PUSH    0FF10h                  ; PSW
+        MOV     [-R0], R2
+        MOV     [-R0], R3
+        MOV     [-R0], R4
+        MOV     R2, #140
+        MOV     R3, #7
+        CALLA   UC, v10_setting         ; the blip's own spark angle
+        MOVB    0E2B5h, RL4
+        MOV     R4, #0
+        MOVB    0E2B4h, RL4
+        MOV     R4, [R0+]
+        MOV     R3, [R0+]
+        MOV     R2, [R0+]
+        POP     0FF10h                  ; PSW
         JMPS    0Bh, 05C84h
 
 ; ---- the AFR branch (0B:D434, JB FDF8.2): RAL first, as stock; during a window the rich target goes through the
@@ -339,6 +360,7 @@ pa_none:
 ; ---- the throttle store (09:B138, MOV 86A4h, R4): during a window the opening is added to the pedal-map setpoint,
 ; saturating; the store then sets E, Z and N as the stock one does, with C and V as they came. ----
 pops_throttle:
+        JB      BLIP_ON, pth_blip
         JNB     0FDF8h.3, pth_store
         JNB     0FD2Ch.11, pth_store
         PUSH    0FF10h                  ; PSW
@@ -383,6 +405,16 @@ pth_done:
         MOV     R2, [R0+]
         POP     0FF10h                  ; PSW
 pth_store:
+        MOV     86A4h, R4
+        RETS
+pth_blip:
+        JB      GUARD, pth_store
+        PUSH    0FF10h                  ; PSW
+        ADD     R4, BLIP_ADD
+        JMPR    NC, pth_blip_sum
+        MOV     R4, #0FFFFh
+pth_blip_sum:
+        POP     0FF10h                  ; PSW
         MOV     86A4h, R4
         RETS
 
