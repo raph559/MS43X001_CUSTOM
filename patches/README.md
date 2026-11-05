@@ -151,3 +151,5 @@ See `docs/live-overlay-v9.md`.
 `tools/build_live_overlay_v10.py` (`tools/live_overlay_v10.py`) from the V9 sources: V9 plus pops stabs and the
 downshift blip. `live_overlay_v10_groups.inc` (groups 139..142) and `live_overlay_v10_blip.inc` (the stabs, the
 torque guard, the blip and the re-entry hook at `0x2AAA0`) are written by hand. See `docs/live-overlay-v10.md`.
+Since 2026-11-05 these sources build V10.1 (`build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin`, header version word
+`010Ah`); the V10 that was sent is at `fe5054f` and in `bins/`.

@@ -35,7 +35,7 @@ V10's state takes the 12 bytes below the watch, logical 668..679 of pool A, CPU 
 | `9FA3h` | byte | `BLIP_CL` | 10 ms ticks since the clutch went in, saturating at 255; 0 while it is released |
 | `9FA4h` | byte | `BLIP_TGT` | the blip's target, in `807F` units (32 rpm) |
 | `9FA5h` | byte | `BLIP_TAP` | 10 ms ticks since the pedal rose past the tap threshold |
-| `9FA6h..9FA7h` | | | spare |
+| `9FA6h..9FA7h` | | | spare (V10.1: `BLIP_PREV`, `BLIP_RATE`, below) |
 | `FDF8.7` | bit | `POPS_STAB` | a stab is on |
 | `FDF8.8` | bit | `BLIP_ON` | a blip is running |
 | `FDF8.9` | bit | `BLIP_USED` | this clutch press has had its blip, or the pedal is the driver's for it |
@@ -185,3 +185,55 @@ The sound and the flames; the real throttle motor's answer to a 150 ms stab (the
 400 °/s); the free rev's real torque and the clutch's feel; combustion, exhaust temperature and knock at the blip's
 +10.1°; the physical K-line and the real ECU's timing (P1567 and the queues above are V9's open questions too). Engine
 safety and the stabs' and blip's settings remain to be shown on the car.
+
+## V10.1 (2026-11-05, after the first car test)
+
+The first car test of V10 (log `ms43-20261105-171338.csv`, 30 min) found the blips working but slow from low rpm and
+overshooting by 350 to 700 rpm, and the pops "not working AT ALL" (owner): the window held the speed and the rpm with a
+loud noise, a stab pushed the car, and V8's 160 rpm rise rule ended each window after one or two stabs, since on the
+car a stab adds about 200 rpm. The owner's decisions: "put it by default plz" (the pops settings below), "do it by
+default" (a 20.0 °TPS blip), "lets do it" (the blip's predictive end, and the faults in the log), "it needs way more
+fuel i believe, and less pedal openning". The plan is the source contract.
+
+- **Identification.** V10's sources are edited in place. The header's version word is `010Ah`: the low byte stays 10,
+  so every V10 rule and the magic `C0DA` hold, and the high byte is the minor (V8.5's way); the status reply still
+  says 10. The build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin` (SHA-256 `dfb3d8b2…90e8`), program
+  identity `171121a5…ea8a` (`ProgramIdentity.Ms43X001LiveOverlayV101`, known whatever its flashed settings). The sent
+  V10 (`708f767f…`) keeps its own name. V10's code now runs from `0C:F756` to `0C:FCB0`.
+- **Defaults** (the switches still off):
+
+  | Group | Bytes | Meaning |
+  |---|---|---|
+  | 138 pops | `00 28 00 D2 7D 9E 1E 14` | 4.0 s, −23.625°, AFR 9.99, 4,000 rpm, 70.5 °C, 3.0 °TPS, 20 km/h |
+  | 139 stabs | `14 19 0F 19 0F 00 00 00` | a 2.0 s load, +5.0 °TPS stabs of 150 ms every 400 ms, a 480 rpm rise once stabbing |
+  | 140 blip | `00 03 1E BB 0F 64 19 5A` | as V10, with a 20.0 °TPS blip opening |
+  | 141 gears and tap | `01 01 01 00 15 28 0F 00` | as V10, with a 150 ms lead |
+  | 142 ratios | `E2 86 59 43 00 00 00 00` | as V10 |
+
+- **The AFR target** (138 byte 3) takes 128..255, down to AFR 7.4 (λ 0.504); V10 stopped at 210 (AFR 9.99). The value
+  goes through the same shared rich path (`0x3D456`), a byte throughout: the blend, then the richer of it and the stock
+  target.
+- **The rise once stabbing** (139 byte 4, "Rise allowed during stabs", 32 rpm units, 5..31, 160..992 rpm).
+  `rise_allowance` replaces V8's `ADD R5, #5` in `pops_tick`'s rise check: during the load a window still ends when the
+  rpm rises 160 rpm above its lowest; once the stabs have begun (`POPS_T` past 10 × the load time, with a stab size
+  above 0) it ends at this byte's rise. A V10 bin's 0 reads as 5, V10's rule. No `FDF8` bit is used for the phase:
+  `FDF8.14` and `FDF8.15` belong to the car file.
+- **The blip lead** (141 byte 6, "Blip lead", 10 ms units, 0..30). While the blip rises, `blip_lead` keeps `BLIP_PREV`
+  (`9FA6h`, `807F` one tick ago) and `BLIP_RATE` (`9FA7h`, the rise a tick × 16, filtered: `rate − rate/4 + 4 × rise`,
+  a fall counting as none, at most 255), and returns `rate × lead / 16` in `807F` units. The rise ends when the rpm plus
+  192 rpm plus that reaches the target. At one unit (32 rpm) a tick the rate settles at 16 within 8 ticks, so a 150 ms
+  lead ends the rise 480 rpm earlier. The lead only ever ends the rise sooner; 0 is V10's rule. The hold is V10's.
+- **V10's review minors, fixed:** `blip_reentry`'s blip path runs the stock `BCMP FD9Ah.11, FD48h.2` and
+  `BMOV FD9Ah.11, PSW.2` (the same bytes as `0x2AAA0..0x2AAA7`) before `JMPS 0Ah, 0AABAh`, so `FD9A.11` and the flags
+  are a stock pass's; `bt_go` sets `BLIP_ON` after `BLIP_LEFT`, `BLIP_ADD`, `BLIP_HOLD` and the rate; a running blip
+  stops if `81AE` leaves 2..5, which would index past group 142.
+- **The app.** The header's minor picks the catalogue and the rules (`OverlayV10.MapsFor(minor)`,
+  `ValidateCopy(…, minor)`): on a V10.1 ECU or bin, "Pops stabs" shows "Rise allowed during stabs" and "Downshift blip:
+  gears and tap" shows "Blip lead", and the pops AFR target goes down to 7.4. A V10 ECU keeps V10's fields and limits,
+  and a V10.1 value is refused there before anything is sent.
+- **The log.** Every CSV row carries 13 more columns after the channels: `faults` (the stored P-codes, oldest first,
+  or `none`), `queues` (the overflowed task queues, or `none`), read when logging starts and every 20 s; and on a V10
+  ECU, every 0.5 s, `fd2c`, `fd2e`, `fdf8` (hex) and `pops_window`, `pops_stab`, `pops_used`, `blip` (0 off, 1 rising,
+  2 holding), `guard`, `brake_light`, `brake_test`, `clutch`. Each is one DS2 06 read between two polls; a failed read
+  keeps the last value and the poll goes on, a state read with no answer waits 20 s, and while the overlay is quiet
+  nothing but these stock reads reaches it. Columns not read stay empty, so every row is as wide as the header.
