@@ -197,9 +197,9 @@ fuel i believe, and less pedal openning". The plan is the source contract.
 
 - **Identification.** V10's sources are edited in place. The header's version word is `010Ah`: the low byte stays 10,
   so every V10 rule and the magic `C0DA` hold, and the high byte is the minor (V8.5's way); the status reply still
-  says 10. The build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin` (SHA-256 `dfb3d8b2…90e8`), program
-  identity `171121a5…ea8a` (`ProgramIdentity.Ms43X001LiveOverlayV101`, known whatever its flashed settings). The sent
-  V10 (`708f767f…`) keeps its own name. V10's code now runs from `0C:F756` to `0C:FCB0`.
+  says 10. The build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin` (SHA-256 `765bac9d…a8ff`), program
+  identity `dccf68a2…b055` (`ProgramIdentity.Ms43X001LiveOverlayV101`, known whatever its flashed settings). The sent
+  V10 (`708f767f…`) keeps its own name. V10's code now runs from `0C:F758` to `0C:FCB2`.
 - **Defaults** (the switches still off):
 
   | Group | Bytes | Meaning |
@@ -214,10 +214,12 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   goes through the same shared rich path (`0x3D456`), a byte throughout: the blend, then the richer of it and the stock
   target.
 - **The rise once stabbing** (139 byte 4, "Rise allowed during stabs", 32 rpm units, 5..31, 160..992 rpm).
-  `rise_allowance` replaces V8's `ADD R5, #5` in `pops_tick`'s rise check: during the load a window still ends when the
-  rpm rises 160 rpm above its lowest; once the stabs have begun (`POPS_T` past 10 × the load time, with a stab size
-  above 0) it ends at this byte's rise. A V10 bin's 0 reads as 5, V10's rule. No `FDF8` bit is used for the phase:
-  `FDF8.14` and `FDF8.15` belong to the car file.
+  `rise_allowance` replaces V8's `+ 5` in both rise checks, `pops_tick`'s every 10 ms and the overrun-cut gate's
+  (`pops_gate`, at every request of the stock cut; the V10.1 review found it still at 160 rpm, which would have ended
+  every stabbing window as on V10): during the load a window still ends when the rpm rises 160 rpm above its lowest;
+  once the stabs have begun (`POPS_T` past 10 × the load time, with a stab size above 0) it ends at this byte's rise.
+  A V10 bin's 0 reads as 5, V10's rule. No `FDF8` bit is used for the phase: `FDF8.14` and `FDF8.15` belong to the car
+  file.
 - **The blip lead** (141 byte 6, "Blip lead", 10 ms units, 0..30). While the blip rises, `blip_lead` keeps `BLIP_PREV`
   (`9FA6h`, `807F` one tick ago) and `BLIP_RATE` (`9FA7h`, the rise a tick × 16, filtered: `rate − rate/4 + 4 × rise`,
   a fall counting as none, at most 255), and returns `rate × lead / 16` in `807F` units. The rise ends when the rpm plus
@@ -231,9 +233,21 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   `ValidateCopy(…, minor)`): on a V10.1 ECU or bin, "Pops stabs" shows "Rise allowed during stabs" and "Downshift blip:
   gears and tap" shows "Blip lead", and the pops AFR target goes down to 7.4. A V10 ECU keeps V10's fields and limits,
   and a V10.1 value is refused there before anything is sent.
-- **The log.** Every CSV row carries 13 more columns after the channels: `faults` (the stored P-codes, oldest first,
-  or `none`), `queues` (the overflowed task queues, or `none`), read when logging starts and every 20 s; and on a V10
-  ECU, every 0.5 s, `fd2c`, `fd2e`, `fdf8` (hex) and `pops_window`, `pops_stab`, `pops_used`, `blip` (0 off, 1 rising,
-  2 holding), `guard`, `brake_light`, `brake_test`, `clutch`. Each is one DS2 06 read between two polls; a failed read
-  keeps the last value and the poll goes on, a state read with no answer waits 20 s, and while the overlay is quiet
-  nothing but these stock reads reaches it. Columns not read stay empty, so every row is as wide as the header.
+- **The log.** Every CSV row carries 13 more columns after the channels.
+  - Five come from the stock payload itself, on every row and at no cost, under the ADX's names: `PUSTATE` (overrun),
+    `PUCSTATE` (its fuel cut), `BTSSTATE` (the brake light test switch), `BLSSTATE` (the brake light switch) and
+    `CSSTATE` (the clutch switch).
+  - `faults` (the stored P-codes, oldest first, or `none`) and `queues` (the overflowed task queues, or `none`) are read
+    when logging starts and every 20 s; on a V10 ECU, `fdf8` (hex) with `pops_window`, `pops_stab`, `pops_used`, `blip`
+    (0 off, 1 rising, 2 holding) and `guard`, every 0.5 s. `pops_stab` is `FDF8.7` at the moment of each read, so it
+    catches about one stab in five.
+  - At most one DS2 06 exchange goes out between two polls, never retried: the fault round is spread over polls (the
+    queue flags, the layout check once a session, the count, the list, a record each). Nothing more goes out while no
+    CSV is open or a Performance run waits or records, so its samples keep the poll's own timing. On another fault
+    layout both `faults` and `queues` say `unsupported`.
+  - A failed read keeps the last value and the poll goes on; three state reads in a row with no answer wait 20 s, and
+    the state cells stay empty once the last good read is a second old. While the overlay is quiet, nothing but these
+    stock reads reaches it. Columns not read stay empty, so every row is as wide as the header.
+  - In the emulator at 125,000 baud the log keeps 14.85 rows a second against sub 11's 16.67 alone on the same drive,
+    with no gap between rows over 120 ms (the first V10.1 build read FD2C and FD2E as well, two reads a half-second and
+    the fault memory in one go: 12.89 a second, with a 380 ms hole every 20 s).
