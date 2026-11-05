@@ -9,6 +9,7 @@ BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (3
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
 BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
 BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
+POPS_STABS      EQU     09FBFh          ; byte: the stabs begun in this pops window, up to 255, for the log (V10.1)
 POPS_STAB       BIT     0FDF8h.7        ; a stab is on
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
 BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
@@ -22,7 +23,7 @@ GUARD           BIT     0FDF8h.13       ; the torque guard is acting
 ; the 10 ms ticks left and the lowest RPM byte (807F) seen in the window.
 
 POPS_LEFT       EQU     09FBCh          ; word: 10 ms ticks left in the window
-POPS_MIN        EQU     09FBEh          ; byte: the lowest 807F in the window (09FBFh reserved)
+POPS_MIN        EQU     09FBEh          ; byte: the lowest 807F in the window (09FBFh: POPS_STABS, V10.1)
 
 ; ---- the limits of group 138: lowest and highest value of each byte; a switch above its highest reads as 0 ----
 pops_limits:
