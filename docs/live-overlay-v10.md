@@ -197,9 +197,9 @@ fuel i believe, and less pedal openning". The plan is the source contract.
 
 - **Identification.** V10's sources are edited in place. The header's version word is `010Ah`: the low byte stays 10,
   so every V10 rule and the magic `C0DA` hold, and the high byte is the minor (V8.5's way); the status reply still
-  says 10. The build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin` (SHA-256 `765bac9d…a8ff`), program
-  identity `dccf68a2…b055` (`ProgramIdentity.Ms43X001LiveOverlayV101`, known whatever its flashed settings). The sent
-  V10 (`708f767f…`) keeps its own name. V10's code now runs from `0C:F758` to `0C:FCB2`.
+  says 10. The build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_1.bin` (SHA-256 `b4568706…9396`), program
+  identity `9f3a0926…1bd1` (`ProgramIdentity.Ms43X001LiveOverlayV101`, known whatever its flashed settings). The sent
+  V10 (`708f767f…`) keeps its own name. V10's code now runs from `0C:F758` to `0C:FCCA`.
 - **Defaults** (the switches still off):
 
   | Group | Bytes | Meaning |
@@ -233,14 +233,18 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   `ValidateCopy(…, minor)`): on a V10.1 ECU or bin, "Pops stabs" shows "Rise allowed during stabs" and "Downshift blip:
   gears and tap" shows "Blip lead", and the pops AFR target goes down to 7.4. A V10 ECU keeps V10's fields and limits,
   and a V10.1 value is refused there before anything is sent.
-- **The log.** Every CSV row carries 13 more columns after the channels.
+- **The stab count for the log.** Pops' spare byte after `POPS_MIN`, `09FBFh` (`POPS_STABS`), counts the stabs begun in
+  the window (cleared by `stab_start`, counted by `stab_tick` as a stab begins, at most 255, kept after the window), so a
+  read twice a second tells every stab: `FDF8.7` alone shows a 150 ms stab to about one read in five.
+- **The log.** Every CSV row carries 14 more columns after the channels.
   - Five come from the stock payload itself, on every row and at no cost, under the ADX's names: `PUSTATE` (overrun),
     `PUCSTATE` (its fuel cut), `BTSSTATE` (the brake light test switch), `BLSSTATE` (the brake light switch) and
     `CSSTATE` (the clutch switch).
   - `faults` (the stored P-codes, oldest first, or `none`) and `queues` (the overflowed task queues, or `none`) are read
-    when logging starts and every 20 s; on a V10 ECU, `fdf8` (hex) with `pops_window`, `pops_stab`, `pops_used`, `blip`
-    (0 off, 1 rising, 2 holding) and `guard`, every 0.5 s. `pops_stab` is `FDF8.7` at the moment of each read, so it
-    catches about one stab in five.
+    when logging starts and every 20 s; a code without a P-code (20 paths, `t_es` and `tam_can` among them) is named.
+    On a V10 ECU, `fdf8` (hex) with `pops_window`, `pops_used`, `blip` (0 off, 1 rising, 2 holding) and `guard` every
+    0.5 s; while a pops window runs, and once after it, pops' own state (`0x41FBC`, one 4-byte read after each FDF8
+    read) gives `pops_stabs`, the stabs begun, and `pops_low_rpm`, the window's lowest rpm, which a rise is measured from.
   - At most one DS2 06 exchange goes out between two polls, never retried: the fault round is spread over polls (the
     queue flags, the layout check once a session, the count, the list, a record each). Nothing more goes out while no
     CSV is open or a Performance run waits or records, so its samples keep the poll's own timing. On another fault
@@ -248,15 +252,16 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   - A failed read keeps the last value and the poll goes on; three state reads in a row with no answer wait 20 s, and
     the state cells stay empty once the last good read is a second old. While the overlay is quiet, nothing but these
     stock reads reaches it. Columns not read stay empty, so every row is as wide as the header.
-  - In the emulator at 125,000 baud the log keeps 14.85 rows a second against sub 11's 16.67 alone on the same drive,
-    with no gap between rows over 120 ms (the first V10.1 build read FD2C and FD2E as well, two reads a half-second and
-    the fault memory in one go: 12.89 a second, with a 380 ms hole every 20 s).
+  - In the emulator at 125,000 baud the log keeps 14.94 rows a second outside a window and 13.14 inside one (where the
+    stab count is read too) against sub 11's 16.67 alone on the same drive, with no gap between rows over 120 ms (the
+    first V10.1 build read FD2C and FD2E as well, two reads a half-second and the fault memory in one go: 12.89 a second,
+    with a 380 ms hole every 20 s).
 
 ### V10.1's verification (2026-11-05, in the emulator)
 
 - **Direct CPU tests:** `OverlayV10Tests` (the header word, V10.1's defaults, the new limits and their clamps, the AFR
   to 255, V10.1 known beside the sent V10), `PopsStabTests` (the rise once stabbing at the tick and at the real gate,
-  160 rpm during the load and with no stab size), `BlipTests` (the lead against 0 and 5, the filtered rate with every
+  160 rpm during the load and with no stab size, the stab count), `BlipTests` (the lead against 0 and 5, the filtered rate with every
   register kept, a gear outside 2..5, `BLIP_ON` seen only with its values in place, 20 °TPS) and `BlipHookTests` (the
   blip's re-entry path leaves `FD9A`, every register and the PSW as a stock pass does). V10's earlier tests run V10.1's
   code with V10's settings pinned (`V10Fixture.Classic`) and keep their numbers.
@@ -271,9 +276,10 @@ fuel i believe, and less pedal openning". The plan is the source contract.
   off V10.1 is V10 (1,162 cycles a pass) and overflows the same queues as V9.
 - **The app against the firmware** (`app/tools/OverlayV10Integration`, the production client at 125,000 baud): stabs,
   blip, fallback, rate and queues as on V10, at V10.1's settings; `log` puts the app's diagnostic columns through the
-  stabs lift (the window and the stabs show in `pops_window` and `pops_stab`, the faults column is the emulator's list);
+  stabs lift (the window shows in `pops_window`, `pops_stabs` reaches the firmware's five, the faults column is the
+  emulator's list);
   `log-plain` and `log-plain-off` show that this lift with sub 11 logging overflows queues 2 and 3 (`FD84` = `0185h`)
   with or without the columns and with pops off: V9's open question, not V10.1's.
-- **Suites:** the emulator 1,932 of 1,934 before the gate fix (the two V1 quick-key-cycle failures, as always), and
-  after it every chunk that runs the V10 image (overlay 349, pops 318, watch 136, v10 166); the app Core 737/737 and
-  UI 764/764, in chunks.
+- **Suites:** the emulator 1,932 of 1,934 before the gate fix (the two V1 quick-key-cycle failures, as always), and on
+  the final bin every chunk that runs the V10 image (overlay 349, pops 319, watch 136, v10 166); the app Core 739/739,
+  and UI 764/764 in chunks before the stab count, then its log, connection, Performance and V10 classes (141/141) after.
