@@ -10,10 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 # Groups 138..142 are 8 bytes each from 0C:FF80 (file 0x4FF80): pops, then V10's four (catalogue page 33h).
 DEFAULTS_FILE = 0x4FF80
 # V10.1's defaults (owner, 2026-11-05: "put it by default plz", "do it by default"): pops at -23.625 deg, AFR 9.99,
-# 4,000 rpm and 3.0 deg TPS with 5.0 deg TPS stabs and a 480 rpm rise once stabbing; a 20.0 deg TPS blip, a 150 ms lead.
+# 4,000 rpm and 3.0 deg TPS with 5.0 deg TPS stabs and a 480 rpm rise once stabbing; a 30.0 deg TPS blip at +20.25 deg
+# (2026-11-06: "Make it the default"), a 150 ms lead.
 POPS_DEFAULTS = bytes([0x00, 0x28, 0x00, 0xD2, 0x7D, 0x9E, 0x1E, 0x14])
 STAB_DEFAULTS = bytes([0x14, 0x19, 0x0F, 0x19, 0x0F, 0, 0, 0])
-BLIP_DEFAULTS = bytes([0x00, 0x03, 0x1E, 0xBB, 0x0F, 0x64, 0x19, 0x5A])
+BLIP_DEFAULTS = bytes([0x00, 0x03, 0x1E, 0xBB, 0x0F, 0x96, 0x19, 0x75])
 GEARS_DEFAULTS = bytes([0x01, 0x01, 0x01, 0x00, 0x15, 0x28, 0x0F, 0])
 RATIO_DEFAULTS = bytes([0xE2, 0x86, 0x59, 0x43, 0, 0, 0, 0])
 DEFAULTS = POPS_DEFAULTS + STAB_DEFAULTS + BLIP_DEFAULTS + GEARS_DEFAULTS + RATIO_DEFAULTS
@@ -104,7 +105,7 @@ def prepare(image):
                       "pops_defaults:\n" + _db(POPS_DEFAULTS)
                       + "; 139 pops stabs: a 2.0 s load, +5.0 deg TPS stabs of 150 ms, 250 ms gaps, a 480 rpm rise once stabbing.\n"
                       + "stab_defaults:\n" + _db(STAB_DEFAULTS)
-                      + "; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 20.0 and 5.0 deg TPS, +10.1 deg.\n"
+                      + "; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 30.0 and 5.0 deg TPS, +20.25 deg.\n"
                       + "blip_defaults:\n" + _db(BLIP_DEFAULTS)
                       + "; 141 its gears and tap: 5th-4th, 4th-3rd, 3rd-2nd on, 2nd-1st off; 9.8 deg PVS within 0.4 s; a 150 ms lead.\n"
                       + "gears_defaults:\n" + _db(GEARS_DEFAULTS)
