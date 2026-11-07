@@ -1,4 +1,4 @@
-; MS43X001 live overlay protocol 10 (V10.3). Build it with ../build_overlay.py on your own MS43X001 bin.
+; MS43X001 live overlay protocol 10 (V10.4). Build it with ../build_overlay.py on your own MS43X001 bin.
 ; Code only: it writes the overlay's free flash block and its hook sites, never the calibration.
 ; Copyright (C) 2026 raph559. GPL-3.0, as a modification of MS43X001 (MS4X project, GPL-3.0).
 ; Control: 00E6B0..00E6DF; idle/intake: 00E6E0..00E7C3; revision: 00E7C4..00E7C7.
@@ -12,7 +12,7 @@ OVL_VERSION     EQU     10              ; (AS predefines VERSION)
 RICHER_ONLY     EQU     0               ; preserves the full original u8 range
 N_TABLES        EQU     143               ; the live tables (TABLES would be the label tables to AS)
 
-; ---- control in XRAM, reached through EXTP #3 ----
+; control in XRAM, reached through EXTP #3
 W_MAGIC         EQU     0E6B0h           ; C0DAh once the handler has initialised the window
 W_SEEN          EQU     0E6B2h           ; E2A6 at the last 0x6D frame
 W_DIR           EQU     0E6B8h           ; base records: state, ID, offset/4, control/link, CRC32
@@ -34,7 +34,7 @@ ST_LOADED       EQU     1
 ST_READY        EQU     2
 ST_ON           EQU     3
 
-; ---- the firmware's RAM (R4-R7 of the plan) ----
+; Firmware RAM addresses.
 F_STATE         EQU     0F900h          ; byte: 2 = synchronised
 F_MODE          EQU     0FD2Ch          ; bits 9-12: idle, part load, overrun, fuel cut
 F_TICKS         EQU     0E2A6h          ; +1 every 10 ms in the main loop
@@ -45,11 +45,10 @@ REP_LEN         EQU     0F74Eh          ; the reply: 12h at F74D, the length, th
 REP_STATUS      EQU     0F74Fh
 REP_DATA        EQU     0F750h
 
-; ======================================================================================================================
         ORG     0CB544h
 
 header: DB      "LTOV"                  ; the signature the app reads with DS2 command 06 at 0C:B544
-        DW      OVL_VERSION + 0300h     ; V10.3: the high byte is the minor
+        DW      OVL_VERSION + 0400h     ; the high byte is the minor
         DW      code_start & 0FFFFh
         DW      code_end & 0FFFFh
         DW      data_end & 0FFFFh
@@ -58,7 +57,7 @@ header: DB      "LTOV"                  ; the signature the app reads with DS2 c
 
 code_start:
 
-; ---- the table stubs: one per table, called by its sites' CALLS with R12/R13 = the table's flash address ----
+; the table stubs: one per table, called by its sites' CALLS with R12/R13 = the table's flash address
 ; A stub substitutes the table's copy only for its own table's address; anything else goes to the reader untouched.
 e_map0:
         CMP     R12, #3315h
@@ -1011,9 +1010,9 @@ rd_external:
 to_reader:
         JMPS    0Dh, 029Ah
 
-; ---- housekeeping: queue-1 task 09h's entry, every 10 ms at every engine state (D1). With the magic present, when the
+; housekeeping: queue-1 task 09h's entry, every 10 ms at every engine state. With the magic present, when the
 ; engine is not running or the app has been silent for 3 s, every On table goes to Ready, and stays there until the app
-; switches it on again (D7). Then the task itself, with R3 and R4 as the scheduler left them. ----
+; switches it on again. Then the task itself, with R3 and R4 as the scheduler left them.
 hk:
         MOV     [-R0], R3
         MOV     [-R0], R4
@@ -1035,7 +1034,7 @@ hk_task:
         MOV     R3, [R0+]
         JMPS    0Dh, 080DEh
 
-; ---- the DS2 0x6D handler: called by the dispatcher (09:FB76) with the request at F6CD ----
+; the DS2 0x6D handler: called by the dispatcher (09:FB76) with the request at F6CD
 ; It keeps R0 and saves R6-R9 and R15 on the user stack, as the firmware's handlers do; R1 is left alone. The serial-line task
 ; sends F74D.. once this returns.
 handler:
@@ -1167,7 +1166,7 @@ h_revert:
         JMPA    NZ, bad_len
         JMPA    UC, sub_revert
 
-; ---- the replies: refusals carry the reason in RL4; every path leaves through h_exit ----
+; the replies: refusals carry the reason in RL4; every path leaves through h_exit
 bad_len:
         MOV     R4, #1
         JMPR    UC, refuse_b0
@@ -1219,7 +1218,7 @@ h_exit:
         MOV     R15, [R0+]
         RETS
 
-; ---- load i, off: the flashed table copied to the copy area at off; Loaded ----
+; load i, off: the flashed table copied to the copy area at off; Loaded
 sub_load:
         CALLA   UC, watch_unalias
         MOVBZ   R2, REQ_ARG
@@ -1410,7 +1409,7 @@ lrc_bad:
         MOV     R4, #1
         RET
 
-; ---- write i, at, data: into a loaded or ready table's copy from its byte at; the table becomes Loaded ----
+; write i, at, data: into a loaded or ready table's copy from its byte at; the table becomes Loaded
 sub_write:
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
@@ -1459,7 +1458,7 @@ wr_copy:
         MOVB    [R3], RL4
         JMPA    UC, ack
 
-; ---- on i, crc32: finalize a loaded copy after full-content CRC verification ----
+; on i, crc32: finalize a loaded copy after full-content CRC verification
 sub_on:
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
@@ -1494,7 +1493,7 @@ sub_on:
         MOVB    [R3], RL4
         JMPA    UC, ack
 
-; ---- off i: On becomes Ready, the copy stays ----
+; off i: On becomes Ready, the copy stays
 sub_off:
         MOVBZ   R2, REQ_ARG
         CMP     R2, #(N_TABLES - 1)
@@ -1511,8 +1510,8 @@ sub_off:
         MOVB    [R3], RL4
         JMPA    UC, ack
 
-; ---- all on: every Ready table verified again with its stored CRC, then all of them On together; a Loaded
-; table stays off. One that fails refuses the request, and nothing switches on ----
+; all on: every Ready table verified again with its stored CRC, then all of them On together; a Loaded
+; table stays off. One that fails refuses the request, and nothing switches on
 sub_allon:
         CALLA   UC, running
         CMP     R4, #0
@@ -1558,7 +1557,7 @@ an_onext:
 an_done:
         JMPA    UC, ack
 
-; ---- free i: a table not On back to Free ----
+; free i: a table not On back to Free
 sub_free:
         CALLA   UC, watch_unalias
         MOVBZ   R2, REQ_ARG
@@ -1574,7 +1573,7 @@ sub_free:
         CALLA   UC, free_entry
         JMPA    UC, ack
 
-; ---- revert: every table Free, On ones included ----
+; revert: every table Free, On ones included
 sub_revert:
         CALLA   UC, watch_unalias
         MOV     R3, #W_DIR
@@ -1598,7 +1597,7 @@ rv_limiter:
         MOVB    W_HARD+7, RL4
         JMPA    UC, ack
 
-; ---- status: 64 payload bytes, including the session, revision and limiter ----
+; status: 64 payload bytes, including the session, revision and limiter
 sub_status:
         CALLA   UC, running
         MOV     R13, R4                 ; 1 while the engine runs
@@ -2047,8 +2046,8 @@ reply_dword:
         MOV     [R13+2], R5
         RET
 
-; ---- off_due: R4 = 1 when everything must be off: the engine not running, or 300 ticks since the last 0x6D frame;
-; else 0. Uses R4 ----
+; off_due: R4 = 1 when everything must be off: the engine not running, or 300 ticks since the last 0x6D frame;
+; else 0. Uses R4
 off_due:
         CALLA   UC, running
         CMP     R4, #0
@@ -2064,7 +2063,7 @@ od_yes:
         MOV     R4, #1
         RET
 
-; ---- all_off: every On table to Ready, its copy kept; uses R3, R4 ----
+; all_off: every On table to Ready, its copy kept; uses R3, R4
 all_off:
         CALLA   UC, watch_unalias
         MOV     [-R0], R5
@@ -2304,7 +2303,7 @@ bitmap_remove:
 br_done:
         RET
 
-; ---- table_info: table R2's flash page (R11), page offset (R12), bytes (R10); uses R5 ----
+; table_info: table R2's flash page (R11), page offset (R12), bytes (R10); uses R5
 table_info:
         MOV     R5, R2
         SHL     R5, #3
@@ -2315,7 +2314,7 @@ table_info:
         MOV     R10, [R5+4]
         RET
 
-; ---- running: R4 = 1 while the engine runs (F900 = 2 and FD2C bits 9-12), else 0; uses R4 ----
+; running: R4 = 1 while the engine runs (F900 = 2 and FD2C bits 9-12), else 0; uses R4
 running:
         MOVB    RL4, F_STATE
         CMPB    RL4, #2
@@ -2605,7 +2604,7 @@ tables:
         DW      001Fh, 024DCh, 288, 4 ; 136 ip_tps_sp_pvs__pvs__n
         DW      001Fh, 025FCh, 32, 4 ; 137 ip_tps_sp_pvs_add_low_n__n_dif__
         DW      0033h, 03F80h, 8, 2 ; 138 pops
-        DW      0033h, 03F88h, 8, 2 ; 139 reserved (V10.3: no stabs)
+        DW      0033h, 03F88h, 8, 2 ; 139 reserved
         DW      0033h, 03F90h, 8, 2 ; 140 downshift blip
         DW      0033h, 03F98h, 8, 2 ; 141 downshift blip: gears and tap
         DW      0033h, 03FA0h, 8, 2 ; 142 downshift blip: gear ratios
@@ -2868,7 +2867,7 @@ crc_table:
         DW      0DF1Bh, 05A05h
         DW      0EF8Dh, 02D02h
 
-; Generated by tools/generate_crc_zero_powers.py; 9 x 32 columns.
+; Generated by generate_crc_zero_powers.py (private tool); 9 x 32 columns.
 crc_zero_powers:
 ; Advance a remainder by 1 zero bytes.
         DW      03096h, 07707h
@@ -3180,7 +3179,7 @@ crc_zero_powers:
         ORG     0CFF80h
 pops_defaults:
         DB      000h, 028h, 000h, 046h, 07Dh, 09Eh, 01Eh, 014h
-; 139 reserved (V10.3: the stabs are gone).
+; 139 reserved.
 stab_defaults:
         DB      000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h
 ; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 30.0 and 5.0 deg TPS, +20.25 deg.

@@ -1,11 +1,11 @@
-; V10's settings groups (docs/live-overlay-v10.md): 139 reserved (V10.3), 140 the downshift blip, 141 its gears and tap,
+; V10's settings groups (docs/live-overlay-v10.md): 139 reserved, 140 the downshift blip, 141 its gears and tap,
 ; 142 its gear ratios. Each is 8 bytes, as every group is: feature_write_validate takes one whole group, and
 ; feature_address maps a byte within an 8-byte span. Their flashed defaults follow pops' at 0C:FF88.
 
-; ---- the limits: lowest and highest value of each byte, 16 bytes per group from 139; a switch above its highest
-; reads as 0 ----
+; the limits: lowest and highest value of each byte, 16 bytes per group from 139; a switch above its highest
+; reads as 0
 v10_limits:
-        DB      0, 0            ; 139/0..7 reserved (V10.3: V10.2's pops stabs are gone), every byte 0
+        DB      0, 0            ; 139/0..7 reserved, every byte 0
         DB      0, 0
         DB      0, 0
         DB      0, 0

@@ -1,4 +1,4 @@
-# The live-tuning overlay (V10.3)
+# The live-tuning overlay (V10.4)
 
 A small add-on to **MS43X001**, the MS4X project's custom firmware for the Siemens MS43. It lives in
 MS43X001's free flash space and lets MS43 Tuner change maps and settings in the ECU's RAM over DS2 on
@@ -6,10 +6,10 @@ the K-line, with no reflash. Nothing you send survives a power cycle until you c
 and flash it.
 
 > [!WARNING]
-> This is experimental firmware. It has been tested in an emulator that runs the real MS43X001 code,
-> on scripted drives, and in one car. It has not been validated more widely. Keep your original bin,
-> flash the overlay bin only if you can flash back, and use the Fun features only on a closed road or
-> a track.
+> This is experimental firmware. V10.4 has run on scripted drives in MS43 Emulator, which executes the
+> real MS43X001 code, and has also run in one E46 M54B25. Wider vehicle validation is still pending.
+> Keep your original bin, flash the overlay bin only if you can flash back, and use the Fun features
+> only on a closed road or a track.
 
 ## What it adds
 
@@ -54,10 +54,10 @@ python -I build_overlay.py YOUR.bin
 
 - With `asl` on PATH it runs natively. Otherwise give its folder with `--asl-dir`; on Windows without a
   native AS, the build runs it in WSL (`--wsl`, default `Ubuntu-24.04`), and `--asl-dir` is a WSL path.
-- `--out OUT.bin` names the result; the default is `YOUR-live-overlay-v10_3.bin`.
-- The build prints the program identity of the result. For V10.2 it is
-  `b7f5979312951b091c019e2d433b32e01de2c001e861f63ffae679c646603440` on any supported bin, since the
-  identity covers the program code only.
+- `--out OUT.bin` names the result; the default is `YOUR-live-overlay-v10_4.bin`.
+- The build prints the result's program identity (SHA-256 of the program code, excluding calibration).
+  Use the identity from your current build when reporting a problem; an older overlay's digest does
+  not identify V10.4.
 
 Flash the result with MS4X Flasher, as any bin. Then open it in MS43 Tuner: the Live tuning and Fun tabs
 find the overlay on the ECU and in the bin.

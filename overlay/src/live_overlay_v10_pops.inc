@@ -1,19 +1,19 @@
 ; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13; FDF8.14 and
 ; FDF8.15 belong to the car file.
-                                        ; 09F9Ch: free (V10.2's stab clock)
+                                        ; 09F9Ch: free
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
 BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding, FFh
-                                        ; until its first (V10.2)
+                                        ; until its first
 BLIP_CL        EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
-BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
-BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
-POPS_XSTOCK     EQU     09FA7h          ; byte: in a pops window, the car file's own target byte (V10.2); shares BLIP_RATE,
+BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises
+BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises
+POPS_XSTOCK     EQU     09FA7h          ; byte: in a pops window, the car file's own target byte; shares BLIP_RATE,
                                         ; as no blip runs in a window and every blip's start resets the rate
-                                        ; 09FBFh: free (V10.2's stab count)
-SPK_RAMP        BIT     0FDF8h.7        ; V10.3: the spark comes back from the blip's last angle, ramped (V10.2's stab bit)
+                                        ; 09FBFh: free
+SPK_RAMP        BIT     0FDF8h.7        ; the spark comes back from the blip's last angle, ramped
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
 BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
 BLIP_ARMED      BIT     0FDF8h.10       ; the pedal has been below the tap threshold since the clutch went in
@@ -21,22 +21,22 @@ BLIP_TAPPING    BIT     0FDF8h.11       ; the pedal rose past the threshold afte
 BLIP_HOLD       BIT     0FDF8h.12       ; the blip has reached its target band (the hold phase)
 GUARD           BIT     0FDF8h.13       ; the torque guard is acting
 
-; Pops on lift-off (docs/live-overlay-v8.md): settings group 138, its limits and the routines that use it.
+; Pops on lift-off: settings group 138, its limits and the routines that use it.
 ; State: FDF8.3 a window is running, FDF8.4 this lift has had its window; the last four bytes of pool A hold
 ; the 10 ms ticks left and the lowest RPM byte (807F) seen in the window.
 
 POPS_LEFT       EQU     09FBCh          ; word: 10 ms ticks left in the window
 POPS_MIN        EQU     09FBEh          ; byte: the lowest 807F in the window (09FBFh reserved)
 
-; ---- the limits of group 138: lowest and highest value of each byte; a switch above its highest reads as 0 ----
+; the limits of group 138: lowest and highest value of each byte; a switch above its highest reads as 0
 pops_limits:
         DB      0, 2            ; 0 switch: 0 off, 1 always on, 2 cruise control ready; or 80h..9Fh, a CAN bit (pops_conditions)
         DB      1, 50           ; 1 duration, 0.1 s
-        DB      0, 255          ; 2 ignition angle, 0.375 X - 23.625 deg BTDC
-        DB      50, 147         ; 3 AFR target, the real AFR x 10 in petrol AFR (V10.2): 50 = 5.0, 147 = 14.7
+        DB      0, 143          ; 2 ignition angle, 0.375 X - 23.625 deg BTDC
+        DB      50, 147         ; 3 AFR target, the real AFR x 10 in petrol AFR: 50 = 5.0, 147 = 14.7
         DB      50, 219         ; 4 minimum RPM, 32 X
         DB      144, 255        ; 5 minimum coolant, 0.75 X - 48 deg C
-        DB      0, 200          ; 6 throttle opening, 0.1 deg TPS (V9: up to 20.0)
+        DB      0, 200          ; 6 throttle opening, 0.1 deg TPS
         DB      0, 255          ; 7 minimum speed, km/h
 
 ; R3 = byte of group 138. Return R4 = the live or flashed setting, clamped to its limits.
@@ -164,8 +164,8 @@ pc_switched_on:
 pc_done:
         RET
 
-; ---- the overrun-cut gate (0A:A7BC). The stock cut comes when FD2E.13 or FD30.2 is set; a pops window holds it off
-; and stays in fuelled overrun. Exits are the stock ones, with every register and PSW as they came. ----
+; the overrun-cut gate (0A:A7BC). The stock cut comes when FD2E.13 or FD30.2 is set; a pops window holds it off
+; and stays in fuelled overrun. Exits are the stock ones, with every register and PSW as they came.
 pops_gate:
         JB      0FD2Eh.13, pg_request
         JB      0FD30h.2, pg_request
@@ -184,8 +184,6 @@ pg_pops:
         JB      0FDF8h.4, pg_cut
         CMP     R5, #0
         JMPR    Z, pg_cut
-        BSET    0FDF8h.3
-        BSET    0FDF8h.4
         MOV     R3, #1
         CALLA   UC, pops_setting
         MOV     R3, R4
@@ -195,6 +193,8 @@ pg_pops:
         MOV     POPS_LEFT, R4
         MOVB    RL4, 807Fh
         MOVB    POPS_MIN, RL4
+        BSET    0FDF8h.4
+        BSET    0FDF8h.3                ; last, with the time in place
         JMPR    UC, pg_stay
 pg_running:
         CMP     R5, #0
@@ -229,10 +229,10 @@ pg_stay:
         POP     0FF10h                  ; PSW
         JMPS    0Ah, 0B0F2h
 
-; ---- every 10 ms, from housekeeping (R3 and R4 are saved there): the lift is over when the engine leaves overrun.
+; every 10 ms, from housekeeping (R3 and R4 are saved there): the lift is over when the engine leaves overrun.
 ; During a window the tick, not only the gate, ends it: stock paths can keep fuelled overrun without passing the
 ; gate, so the time limit and every stop are checked here too. While it runs, misfire detection stays suppressed,
-; as LC, NLS and RAL do. ----
+; as LC, NLS and RAL do.
 pops_tick:
         JB      0FD2Ch.11, pt_overrun
         JB      0FD2Ch.12, pt_overrun
@@ -288,8 +288,8 @@ pt_end:
         BCLR    0FDF8h.3
         RET
 
-; ---- the pedal-released skip (0B:D3B2, JNB FD44.3): with the pedal released the stock code skips the AFR target
-; and full-load enrichment path. During a window it runs, so the rich target and lambda-loop-off take effect. ----
+; the pedal-released skip (0B:D3B2, JNB FD44.3): with the pedal released the stock code skips the AFR target
+; and full-load enrichment path. During a window it runs, so the rich target and lambda-loop-off take effect.
 pops_target:
         JNB     0FD44h.3, pg_target
         JNB     0FDF8h.3, pg_skip
@@ -299,13 +299,13 @@ pg_target:
 pg_skip:
         JMPS    0Bh, 0D476h
 
-; ---- the spark call (0A:D424, CALLS 0Bh, 5C84h): during a window the angle is the setting, written where the
-; per-cylinder angles are taken from (E2B5, the encoding of ip_iga_puc). Knock retard is not applied in overrun. ----
+; the spark call (0A:D424, CALLS 0Bh, 5C84h): during a window the angle is the setting, written where the
+; per-cylinder angles are taken from (E2B5, the encoding of ip_iga_puc). Knock retard is not applied in overrun.
 pops_spark:
         JB      BLIP_ON, psk_blip
         JNB     0FDF8h.3, psk_ramp
         JNB     0FD2Ch.11, psk_ramp
-        BCLR    SPK_RAMP                ; V10.3: a pops window fires its own angle
+        BCLR    SPK_RAMP                ; a pops window fires its own angle
         PUSH    0FF10h                  ; PSW
         MOV     [-R0], R3
         MOV     [-R0], R4
@@ -320,7 +320,7 @@ pops_spark:
 psk_stock:
         JMPS    0Bh, 05C84h
 psk_blip:
-        JNB     0FD2Ch.11, psk_ramp     ; V10.3: out of overrun the stock angle comes back ramped
+        JNB     0FD2Ch.11, psk_ramp     ; out of overrun the stock angle comes back ramped
         PUSH    0FF10h                  ; PSW
         MOV     [-R0], R2
         MOV     [-R0], R3
@@ -333,13 +333,13 @@ psk_blip:
         CMPB    RL5, BLIP_TGT
         JMPR    ULE, psk_angle          ; at or below the target
         MOV     R5, R4
-        MOV     R2, #141                ; V10.2: above it, the cap angle (141 byte 7)
+        MOV     R2, #141                ; above it, the cap angle (141 byte 7)
         CALLA   UC, v10_setting
         CMP     R4, R5
         JMPR    ULE, psk_angle
-        MOV     R4, R5                  ; a cap above the blip angle is off (V10.2's review)
+        MOV     R4, R5                  ; a cap above the blip angle is off
 psk_angle:
-        MOVBZ   R3, 807Fh               ; V10.2: the most advance now, the last angle + 807F / 4
+        MOVBZ   R3, 807Fh               ; the most advance now, the last angle + 807F / 4
         SHR     R3, #2
         MOVBZ   R5, BLIP_SPK
         ADD     R3, R5
@@ -347,7 +347,7 @@ psk_angle:
         JMPR    ULE, psk_write
         MOV     R4, R3
 psk_write:
-        BSET    SPK_RAMP                ; V10.3: the stock angle will come back from this one
+        BSET    SPK_RAMP                ; the stock angle will come back from this one
         MOVB    BLIP_SPK, RL4
         MOVB    0E2B5h, RL4
 psk_written:
@@ -359,7 +359,7 @@ psk_written:
         MOV     R2, [R0+]
         POP     0FF10h                  ; PSW
         JMPS    0Bh, 05C84h
-psk_ramp:                               ; V10.3: the hand-over from the blip to the stock angle
+psk_ramp:                               ; the hand-over from the blip to the stock angle
         JNB     SPK_RAMP, psk_stock
         PUSH    0FF10h                  ; PSW
         MOV     [-R0], R3
@@ -388,8 +388,8 @@ pr_out:
         POP     0FF10h                  ; PSW
         JMPS    0Bh, 05C84h
 
-; ---- the AFR branch (0B:D434, JB FDF8.2): RAL first, as stock; during a window the rich target goes through the
-; shared feature path, which takes the richer of it and the stock target and switches the lambda loop off. ----
+; the AFR branch (0B:D434, JB FDF8.2): RAL first, as stock; during a window the rich target goes through the
+; shared feature path, which takes the richer of it and the stock target and switches the lambda loop off.
 pops_afr:
         JB      0FDF8h.2, pa_ral
         JNB     0FDF8h.3, pa_none
@@ -399,7 +399,7 @@ pops_afr:
         MOV     [-R0], R4
         MOV     R3, #3
         CALLA   UC, pops_setting
-        MOV     R12, R6                 ; V10.2: at 14.7 the car file's own target, as stock
+        MOV     R12, R6                 ; at 14.7 the car file's own target, as stock
         CMP     R4, #147
         JMPR    UGE, pa_pass
         MOVB    POPS_XSTOCK, RL6        ; the car file's byte, for pops_fuel's richer-of rule
@@ -415,8 +415,8 @@ pa_ral:
 pa_none:
         JMPS    0Bh, 0D464h
 
-; ---- the throttle store (09:B138, MOV 86A4h, R4): during a window the opening is added to the pedal-map setpoint,
-; saturating; the store then sets E, Z and N as the stock one does, with C and V as they came. ----
+; the throttle store (09:B138, MOV 86A4h, R4): during a window the opening is added to the pedal-map setpoint,
+; saturating; the store then sets E, Z and N as the stock one does, with C and V as they came.
 pops_throttle:
         JB      BLIP_ON, pth_blip
         JNB     0FDF8h.3, pth_store
@@ -464,14 +464,14 @@ pth_blip_sum:
         RETS
 
 
-; ---- V10.2, the AFR display join (0B:D4D4, MOVBZ R12, 91B8h): both branches of the shared rich path meet here, 91A0
+; the AFR display join (0B:D4D4, MOVBZ R12, 91B8h): both branches of the shared rich path meet here, 91A0
 ; set (0B:D4BC, L = (X - 128) x 16, with FD9A.10) or cleared. When pops_afr forced the rich path in this pass (a window,
 ; the pops AFR below 14.7, so 91A0 holds the forced 2032), the enrichment becomes the real AFR's, (147 - A) x 4096 / A,
 ; or the car file's own made real when that is richer, and 91B9, the logged target, the real mixture: 91B8 x 4096 /
 ; (4096 + 91A0). Every other pass with a rich target makes it real (every AFR real): 91B9 first, from L, as the stock
 ; display, so its numbers stay as today, then 91A0 = afr_real(L). MULU and DIVLU as the stock 0D:194C uses them at
 ; 0B:D4E0 in the same pass; R4, R5, R12, R13 and MD are scratch there, and R5 and R12 are left as the stock code leaves
-; them. Without a rich target the displaced instruction runs. ----
+; them. Without a rich target the displaced instruction runs.
 pops_fuel:
         JNB     0FD9Ah.10, pf_plain     ; no rich target in this pass
         JNB     0FDF8h.3, pf_every
@@ -532,7 +532,7 @@ pf_plain:
         MOVBZ   R12, 091B8h
         JMPS    0Bh, 0D4D8h
 
-; V10.2: R13 = L, an enrichment as the shared rich path stores it ((X - 128) x 16, -2048..2032). Return R13 = the real
+; R13 = L, an enrichment as the shared rich path stores it ((X - 128) x 16, -2048..2032). Return R13 = the real
 ; AFR's, L x 4096 / (4096 - L), signed and truncated toward zero: the byte the XDF shows as AFR 14.7 x (384 - X) / 256
 ; then gives that AFR. Changes R4, MD and PSW.
 afr_real:

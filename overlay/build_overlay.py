@@ -1,26 +1,12 @@
-"""Build the live-tuning overlay (V10.3) into a copy of your own MS43X001 bin.
+"""Build the live-tuning overlay (V10.4) into a copy of your own MS43X001 bin.
 
     python -I build_overlay.py YOUR.bin [--out OUT.bin] [--asl-dir DIR] [--wsl DISTRO]
 
-It writes code only: the overlay in MS43X001's free flash block, and the jumps to it at the hook sites
-listed in write_list.json. Your calibration (everything from 0x70000) is checked to come out byte for
-byte as it went in, apart from its two checksum words, so your maps, injector flow, limiter and every
-other tune value stay yours.
+Accepts a supported, unpatched 512 KiB MS43X001 image. Changes only the overlay
+block, checked hook sites and checksum words; all other calibration bytes must
+remain unchanged. Writes a separate file and never flashes the ECU.
 
-Steps:
-  1. Read your bin (512 KiB) and check that its program code is MS43X001's (SUPPORTED). Another
-     program, or one already patched, is refused: the hooks would land on the wrong code.
-  2. Assemble src/live_overlay_v10.asm with AS (asl and p2hex), natively if `asl` is on PATH or in
-     --asl-dir, otherwise in WSL (--wsl, default Ubuntu-24.04). Any assembler warning but
-     "page might not be addressable" (AS gives it on each EXTP/EXTS access, with correct bytes) refuses.
-  3. Refuse any record outside the free block or the write list, and any hook site whose original bytes
-     differ from MS43X001's. Every write-list site must be written.
-  4. Apply the records, check the overlay header and the program CRC range, fix and verify the five
-     checksums, and check that the calibration is unchanged.
-  5. Write OUT (default: YOUR-live-overlay-v10_3.bin next to it). Your bin is only read.
-
-Nothing here flashes anything. Keep your original bin, and flash the result only if you can flash back.
-AS is Alfred Arnold's Macro Assembler: http://john.ccac.rwth-aachen.de:8000/as/
+Build requirements and options: overlay/README.md.
 """
 import argparse
 import hashlib
@@ -41,10 +27,10 @@ SIZE = 0x80000
 BLOCK = (0x4B544, 0x4FFE6)          # MS43X001's free flash, up to the programming signature
 NEVER = [(0x00000, 0x08000), (0x4FFE6, 0x50000), (0x6FFF0, 0x70000), (0x7FFF0, 0x80000)]
 CALIBRATION = (0x70000, 0x80000)
-# The calibration's own checksum words, the only calibration bytes the build may change: fixing the five
-# checksums recomputes them, and MS43X001 bins (the release included) can carry a calibration CRC that
-# does not match, as MS4X Flasher corrects it when it flashes.
+# Only these calibration checksum words may change. Recomputing all five checksums
+# also fixes stale calibration CRCs that MS4X Flasher would repair when flashing.
 CALIBRATION_CHECKSUMS = [(0x72FFC, 4), (0x73FE0, 2)]
+# AS cannot infer the ECU's DPP setup for absolute accesses; reject every other warning.
 ALLOWED_WARNING = "page might not be addressable"
 
 # Program identity: SHA-256 of the program code (file 0x10000..0x4FFE6 and 0x50000..0x70000),
@@ -120,7 +106,7 @@ def assemble(asl_dir, distro):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("bin", help="your MS43X001 bin (only read)")
-    parser.add_argument("--out", help="the bin to write (default: next to yours, -live-overlay-v10_3.bin)")
+    parser.add_argument("--out", help="the bin to write (default: next to yours, -live-overlay-v10_4.bin)")
     parser.add_argument("--asl-dir", help="the folder with asl and p2hex (native, or a WSL path)")
     parser.add_argument("--wsl", default="Ubuntu-24.04", help="the WSL distribution to run AS in, when it is not native")
     args = parser.parse_args()
@@ -132,7 +118,7 @@ def main():
     if program not in SUPPORTED:
         fail("this bin's program is not one this overlay is built for (program identity %s).\n"
              "It needs an unpatched MS43X001 program; the calibration may be anything." % program)
-    out = args.out or os.path.splitext(args.bin)[0] + "-live-overlay-v10_3.bin"
+    out = args.out or os.path.splitext(args.bin)[0] + "-live-overlay-v10_4.bin"
     if os.path.abspath(out) == os.path.abspath(args.bin):
         fail("--out must not be your bin")
     print("program: %s" % SUPPORTED[program])

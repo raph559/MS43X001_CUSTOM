@@ -1,4 +1,4 @@
-; V9: the watched map. See docs/live-overlay-v9.md.
+; Map-watch state, commands and lookup hooks.
 ; The record is the end of pool A, logical 680..699 (041FA8..041FBB), reached through DPP2 (page 10h).
 
 W_WOFF          EQU     09FA8h          ; word: the watched map's flash offset (R12 form, < 4000h)
@@ -16,7 +16,7 @@ W_ROWIX         EQU     09FBBh          ; byte: the watched map's catalogue row,
 W_ON            BIT     0FDF8h.5        ; a watch is set: the hooks compare only while it is (no code uses FDF8.5/.6)
 W_CP            BIT     0FDF8h.6        ; the watch has a live copy: the hooks compare W_AOFF/W_APAGE only then
 
-; ---- sub 12: 6D 0C a2 a1 a0 sets the watch to the app address a2a1a0 (page * 4000h + offset); 0 clears it ----
+; sub 12: 6D 0C a2 a1 a0 sets the watch to the app address a2a1a0 (page * 4000h + offset); 0 clears it
 ; The reply echoes the address. An address of 80000h or more is refused with reason 4 and changes nothing.
 sub_watch:
         MOVBZ   R6, REQ_SUB+1           ; a2
@@ -52,7 +52,7 @@ sw_reply:
         MOVB    REP_LEN, RL4
         JMPA    UC, h_exit
 
-; ---- watch_set: R4 = page, R5 = offset. Clears the record and finds the map's catalogue row; uses R2, R3, R6, R7 ----
+; watch_set: R4 = page, R5 = offset. Clears the record and finds the map's catalogue row; uses R2, R3, R6, R7
 ; The page is written last, so no hook matches a half-written address.
 watch_set:
         BCLR    W_ON
@@ -86,7 +86,7 @@ ws_found:
         CALLA   UC, watch_alias
         RET
 
-; ---- watch_clear: no watch, no live copy, an empty record; uses R4 ----
+; watch_clear: no watch, no live copy, an empty record; uses R4
 watch_clear:
         BCLR    W_ON
         BCLR    W_CP
@@ -98,8 +98,8 @@ watch_clear:
         MOVB    W_COUNT, RL4
         RET
 
-; ---- watch_quiet, from housekeeping: the watch ends after 3 s without a 0x6D frame, but not at engine-off, since
-; watching changes nothing the engine reads. Before the app's first frame since boot there is no watch. Uses R4 ----
+; watch_quiet, from housekeeping: the watch ends after 3 s without a 0x6D frame, but not at engine-off, since
+; watching changes nothing the engine reads. Before the app's first frame since boot there is no watch. Uses R4
 watch_quiet:
         MOV     R4, W_WPAGE
         CMP     R4, #0FFFFh
@@ -128,8 +128,8 @@ wq_kept:
         POP     0FF10h
         RET
 
-; ---- the readers (Task 2): each JMPS 0Ch, watch_rdN replaces its entry's MOVBZ Rx, FB6Bh. Rx is free until that
-; instruction, which runs last; no incoming flag is read (every flag test inside comes after a MOV or MULU). ----
+; the readers: each JMPS 0Ch, watch_rdN replaces its entry's MOVBZ Rx, FB6Bh. Rx is free until that
+; instruction, which runs last; no incoming flag is read (every flag test inside comes after a MOV or MULU).
 watch_rd0:                             ; 0D:022A, curve
         JNB     W_ON, wr0_stock         ; no watch
         CMP     R12, W_WOFF           ; another map's read falls through to the stock instruction
@@ -442,9 +442,9 @@ wr7_end:
         POP     0FF10h                  ; PSW
         JMPR    UC, wr7_stock
 
-; ---- the descriptor lookups (Task 3): JMPS 0Ch, watch_dsN replaces the MOV DPP0 after the descriptor's unpacking. There
+; the descriptor lookups: JMPS 0Ch, watch_dsN replaces the MOV DPP0 after the descriptor's unpacking. There
 ; R12 (page) : R10 (offset) is the data address, R13 the row input and R14 the column input. The displaced MOV DPP0 runs
-; last; the next instructions set the flags before any test. ----
+; last; the next instructions set the flags before any test.
 watch_ds0:                             ; 0D:04B0, map
         JNB     W_ON, wd0_stock         ; no watch
         CMP     R10, W_WOFF           ; another map's read falls through to the stock instruction
@@ -1053,8 +1053,8 @@ wd15_end:
         POP     0FF10h                  ; PSW
         JMPR    UC, wd15_stock
 
-; ---- watch_alias (Task 4): W_APAGE:W_AOFF is the watched map's live copy, in the readers' form, while its catalogue row
-; holds an allocation; else W_APAGE = 0FFFFh. From housekeeping every 10 ms and from watch_set. Uses R3, R4 ----
+; watch_alias: W_APAGE:W_AOFF is the watched map's live copy, in the readers' form, while its catalogue row
+; holds an allocation; else W_APAGE = 0FFFFh. From housekeeping every 10 ms and from watch_set. Uses R3, R4
 watch_alias:
         MOV     [-R0], R2
         MOV     [-R0], R5
@@ -1102,8 +1102,8 @@ wa_none:
         MOV     R2, [R0+]
         RET
 
-; ---- watch_unalias (Task 4): no live copy for the watch, at once. Load, Free, Revert and every switch-off call it before
-; they change an allocation (RF1); housekeeping finds the copy again within 10 ms. Preserves every register ----
+; watch_unalias: no live copy for the watch, at once. Load, Free, Revert and every switch-off call it before
+; they change an allocation; housekeeping finds the copy again within 10 ms. Preserves every register
 watch_unalias:
         BCLR    W_CP
         MOV     [-R0], R4
@@ -1112,15 +1112,15 @@ watch_unalias:
         MOV     R4, [R0+]
         RET
 
-; ---- sub 11 (Task 5): 6D 0B logs. The reply is the stock 0B B0 payload (F750..F798, unchanged), then the record
-; big-endian at F799..F7A3: KIND COUNT ROWh ROWl ROWFh ROWFl COLh COLl COLFh COLFl COLS; 88 bytes with the frame ----
+; sub 11: 6D 0B logs. The reply is the stock 0B B0 payload (F750..F798, unchanged), then the record
+; big-endian at F799..F7A3: KIND COUNT ROWh ROWl ROWFh ROWFl COLh COLl COLFh COLFl COLS; 88 bytes with the frame
 sub_log:
         CALLS   0Ch, 467Eh              ; the stock logging reply; changes R4..R9 and PSW, which h_exit restores
         MOVB    RL4, #58h
         MOVB    REP_LEN, RL4
         MOV     R6, #0F799h
         PUSH    0FF10h                  ; PSW
-        BCLR    0FF10h.11               ; IEN off: a reply never carries half of two reads (RF2)
+        BCLR    0FF10h.11               ; IEN off: a reply never carries half of two reads
 wl_rec:
         MOVB    RL4, W_KIND
         MOVB    [R6], RL4
