@@ -48,7 +48,7 @@ REP_DATA        EQU     0F750h
         ORG     0CB544h
 
 header: DB      "LTOV"                  ; the signature the app reads with DS2 command 06 at 0C:B544
-        DW      OVL_VERSION + 0100h     ; V10.1: the high byte is the minor
+        DW      OVL_VERSION + 0200h     ; V10.2: the high byte is the minor
         DW      code_start & 0FFFFh
         DW      code_end & 0FFFFh
         DW      data_end & 0FFFFh
@@ -3593,3 +3593,7 @@ data_end:
         JMPS    0Ch, blip_reentry & 0FFFFh
         ORG     0BD4D4h
         JMPS    0Ch, pops_fuel & 0FFFFh
+; V10.2, the owner's choice (2026-11-08): the start's pre-injection, ip_tipr_cst__tco (8 cells over coolant, 0.00533 ms),
+; back to stock X001; the car file has it x 1.6 at every temperature (23.0 ms at 90 deg C, stock 14.4).
+        ORG     0FDE64h
+        DB      062h, 09Dh, 002h, 079h, 033h, 053h, 02Ah, 037h, 00Ah, 027h, 06Bh, 017h, 0DAh, 00Eh, 082h, 00Ah
