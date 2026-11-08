@@ -13,7 +13,7 @@ K-line, and adds pops & bangs on lift-off and an automatic downshift blip.
 [![Version: V10.2](https://img.shields.io/badge/overlay-V10.2-orange.svg)](overlay)
 [![Firmware: MS43X001](https://img.shields.io/badge/firmware-MS43X001%20(M54B25)-555.svg)](#compatibility)
 
-[What it adds](#what-it-adds) · [How it works](#how-it-works) · [Build your bin](#build-your-bin) · [Compatibility](#compatibility) · [History](#history)
+[What it adds](#what-it-adds) · [How it works](#how-it-works) · [Build your bin](#build-your-bin) · [Compatibility](#compatibility) · [Repository](#whats-in-this-repository)
 
 </div>
 
@@ -81,25 +81,12 @@ outside the overlay block and the hook sites.
 
 The calibration can be anything: your own tune is kept as it is.
 
-## History
-
-This repository keeps the overlay's real development history from the author's lab, 71 commits from the first
-patch to V10.2.
-
-| Version | Added |
-|:---|:---|
-| V2–V3 | Live ignition and VE maps in RAM, full-copy CRC-32, edits in checked groups |
-| V4–V5 | A catalogue of 124 maps to choose from, the rev limiter, maps allocated from free RAM |
-| V6 | Launch control, no-lift shift and rolling anti-lag settings |
-| V7 | 11 more maps with 16-bit values |
-| V8–V8.5 | Pops & bangs on lift-off |
-| V9 | The map watch and the switch triggers |
-| V10–V10.2 | The downshift blip with its spark cap, and real AFR targets for pops |
+## What's in this repository
 
 | Path | What |
 |:---|:---|
 | [`overlay/`](overlay) | **The current version (V10.2) and its code-only build.** Start here. |
-| [`patches/`](patches) | Every version's assembly, as it was developed |
+| [`patches/`](patches) | Earlier versions' assembly |
 | [`tools/`](tools) | The lab's generators and builders for each version |
 | [`docs/`](docs), [`LIVE_OVERLAY.md`](LIVE_OVERLAY.md), [`OVERLAY_BUILD.md`](OVERLAY_BUILD.md) | Each version's design, protocol and test records |
 
