@@ -335,12 +335,17 @@ psk_blip:
         MOV     [-R0], R5
         MOV     R2, #140
         MOV     R3, #7                  ; the blip's own spark angle
-        MOVB    RL4, 807Fh
-        CMPB    RL4, BLIP_TGT
-        JMPR    ULE, psk_angle          ; at or below the target
-        MOV     R2, #141                ; V10.2: above it, the cap angle (141 byte 7)
-psk_angle:
         CALLA   UC, v10_setting
+        MOVB    RL5, 807Fh
+        CMPB    RL5, BLIP_TGT
+        JMPR    ULE, psk_angle          ; at or below the target
+        MOV     R5, R4
+        MOV     R2, #141                ; V10.2: above it, the cap angle (141 byte 7)
+        CALLA   UC, v10_setting
+        CMP     R4, R5
+        JMPR    ULE, psk_angle
+        MOV     R4, R5                  ; a cap above the blip angle is off (V10.2's review)
+psk_angle:
         MOVBZ   R3, 807Fh               ; V10.2: the most advance now, the last angle + 807F / 4
         SHR     R3, #2
         MOVBZ   R5, BLIP_SPK

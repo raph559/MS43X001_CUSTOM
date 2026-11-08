@@ -336,16 +336,23 @@ def prepare(image):
     # detected): after the cap, an advance rises at most 807F / 4 steps of 0.375 deg a spark from the last angle the blip
     # wrote, under 0.5 ms of a charge at any speed, as the stock overrun ramp (0A:D3DE) does 2.5 deg a spark; a retard, the
     # cap, is whole at once. A blip's start is whole (bt_go leaves FFh): the owner wants it "very sharp" (2026-11-08), as
-    # V10.1's, so its first firing may lose its charge (one cylinder, 0.04 ms from the car file's -12.75 deg).
+    # V10.1's, so its first firing may lose its charge (one cylinder, 0.04 ms from the car file's -12.75 deg). Above the
+    # target the angle is the lower of the cap and the blip angle (the review, 2026-11-08): a cap set above the blip
+    # angle would otherwise add advance where it should take it away; at or above the blip angle the cap is off.
     pops = _replace(pops, "psk_stock:\n        JMPS    0Bh, 05C84h\n",
                     "psk_stock:\n        JMPS    0Bh, 05C84h\n"
                     "psk_blip:\n        JNB     0FD2Ch.11, psk_stock\n        PUSH    0FF10h                  ; PSW\n"
                     "        MOV     [-R0], R2\n        MOV     [-R0], R3\n        MOV     [-R0], R4\n        MOV     [-R0], R5\n"
                     "        MOV     R2, #140\n        MOV     R3, #7                  ; the blip's own spark angle\n"
-                    "        MOVB    RL4, 807Fh\n        CMPB    RL4, BLIP_TGT\n"
+                    "        CALLA   UC, v10_setting\n"
+                    "        MOVB    RL5, 807Fh\n        CMPB    RL5, BLIP_TGT\n"
                     "        JMPR    ULE, psk_angle          ; at or below the target\n"
+                    "        MOV     R5, R4\n"
                     "        MOV     R2, #141                ; V10.2: above it, the cap angle (141 byte 7)\n"
-                    "psk_angle:\n        CALLA   UC, v10_setting\n"
+                    "        CALLA   UC, v10_setting\n"
+                    "        CMP     R4, R5\n        JMPR    ULE, psk_angle\n"
+                    "        MOV     R4, R5                  ; a cap above the blip angle is off (V10.2's review)\n"
+                    "psk_angle:\n"
                     "        MOVBZ   R3, 807Fh               ; V10.2: the most advance now, the last angle + 807F / 4\n"
                     "        SHR     R3, #2\n        MOVBZ   R5, BLIP_SPK\n        ADD     R3, R5\n"
                     "        CMP     R4, R3\n        JMPR    ULE, psk_write\n        MOV     R4, R3\n"
