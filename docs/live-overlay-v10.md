@@ -383,4 +383,7 @@ the source contract.
 - **Review** (one fresh reviewer over the whole branch): no critical finding; the first build judged safe to drive.
   Of two important findings, the pedal press during the cap was refuted in the emulator (above), and the cap above
   the blip angle was fixed. Five minor findings are deferred.
-- **Not run:** the emulator's V10-image chunks and the full UI suite.
+- **The long suites** on the reviewed build (`9c6733b`, one at a time, Idle on one core): the emulator's LiveTuning
+  tests in four chunks, overlay 379/381 (the two known failures of the first overlay, V1, on the quick key cycle:
+  P0339), pops 338/338, watch 136/136 and the V10 rest 159/159 (the five drive classes that had passed on the same
+  tree an hour before were left out); the app's UI suite in six chunks, 767/767.
