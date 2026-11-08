@@ -93,6 +93,13 @@ The calibration can be anything: your own tune is kept as it is.
 The lab builders in `tools/` read the author's own bins, which are not published; use `overlay/build_overlay.py`.
 `patches/overlay.asm`, the very first patch, is a known-bad record: never build or flash it.
 
+## Related projects
+
+This project is one of three that work together:
+
+- [MS43 Tuner](https://github.com/raph559/MS43_TUNER): the Windows app and command-line tool: live logging, map editing, live tuning, bin compare and road performance tests.
+- [MS43 Emulator](https://github.com/raph559/MS43_EMULATOR): runs an MS43 bin from power-on on your PC, with an engine and a car around it, to test a bin before you flash it.
+
 ## Contributing
 
 Reports from other cars are very welcome, and so is help supporting more MS43X001 variants; see
