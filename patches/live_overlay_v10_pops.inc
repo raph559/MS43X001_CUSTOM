@@ -4,8 +4,9 @@ POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops windo
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
 POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current stab or gap
-BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding (V10.2);
-                                        ; shares POPS_PH, as no blip runs in a window and every window's start clears it
+BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding, FFh
+                                        ; until its first (V10.2); shares POPS_PH, as no blip runs in a window and every
+                                        ; window's start clears it
 BLIP_CL        EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
