@@ -9,6 +9,8 @@ BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (3
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
 BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
 BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
+POPS_XSTOCK     EQU     09FA7h          ; byte: in a pops window, the car file's own target byte (V10.2); shares BLIP_RATE,
+                                        ; as no blip runs in a window and every blip's start resets the rate
 POPS_STABS      EQU     09FBFh          ; byte: the stabs begun in this pops window, up to 255, for the log (V10.1)
 POPS_STAB       BIT     0FDF8h.7        ; a stab is on
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
@@ -30,7 +32,7 @@ pops_limits:
         DB      0, 2            ; 0 switch: 0 off, 1 always on, 2 cruise control ready; or 80h..9Fh, a CAN bit (pops_conditions)
         DB      1, 50           ; 1 duration, 0.1 s
         DB      0, 255          ; 2 ignition angle, 0.375 X - 23.625 deg BTDC
-        DB      128, 255        ; 3 AFR target, the firmware's: lambda = 1.5 - X/256 (128 = 14.7, 184 = 11.5, 255 = 7.4)
+        DB      50, 147         ; 3 AFR target, the real AFR x 10 in petrol AFR (V10.2): 50 = 5.0, 147 = 14.7
         DB      50, 219         ; 4 minimum RPM, 32 X
         DB      144, 255        ; 5 minimum coolant, 0.75 X - 48 deg C
         DB      0, 200          ; 6 throttle opening, 0.1 deg TPS (V9: up to 20.0)
@@ -355,8 +357,13 @@ pops_afr:
         MOV     [-R0], R4
         MOV     R3, #3
         CALLA   UC, pops_setting
-        MOV     R12, R4                 ; the same value for both fuels, so the blend returns it
-        MOV     R13, R4
+        MOV     R12, R6                 ; V10.2: at 14.7 the car file's own target, as stock
+        CMP     R4, #147
+        JMPR    UGE, pa_pass
+        MOVB    POPS_XSTOCK, RL6        ; the car file's byte, for pops_fuel's richer-of rule
+        MOV     R12, #255               ; forces the shared rich path: the lambda loop off, 91A0 = 2032
+pa_pass:
+        MOV     R13, R12                ; the same value for both fuels, so the blend returns it
         MOV     R4, [R0+]
         MOV     R3, [R0+]
         POP     0FF10h                  ; PSW
@@ -427,3 +434,57 @@ pth_blip_sum:
         MOV     86A4h, R4
         RETS
 
+
+; ---- V10.2, the AFR display join (0B:D4D4, MOVBZ R12, 91B8h): both branches of the shared rich path meet here, 91A0
+; set or cleared. When pops_afr forced the rich path in this pass (a window, the pops AFR below 14.7, so 91A0 holds the
+; forced 2032) and the lambda loop is off, the enrichment becomes the real AFR's, (147 - A) x 4096 / A, or the car
+; file's own (POPS_XSTOCK - 128) x 16 when that is richer, and 91B9, the logged target, the real mixture: 91B8 x 4096 /
+; (4096 + 91A0). MULU and DIVLU as the stock 0D:194C uses them at 0B:D4E0 in the same pass; R4, R5, R12, R13 and MD are
+; scratch there, and R5 and R12 are left as the stock code leaves them. Otherwise the displaced instruction runs. ----
+pops_fuel:
+        JNB     0FDF8h.3, pf_stock
+        JNB     0FD2Ch.11, pf_stock
+        JB      0FDF8h.2, pf_stock
+        JNB     0FD9Ah.10, pf_stock
+        MOV     R12, 091A0h
+        CMP     R12, #2032
+        JMPR    NZ, pf_stock            ; not forced by pops_afr in this pass
+        MOV     [-R0], R3
+        MOV     R3, #3
+        CALLA   UC, pops_setting        ; A, the real AFR x 10, 50..147
+        MOV     R3, [R0+]
+        CMP     R4, #147
+        JMPR    UGE, pf_stock
+        MOV     R12, #147
+        SUB     R12, R4
+        MOV     R13, #4096
+        MULU    R12, R13                ; MD = (147 - A) x 4096
+        DIVLU   R4                      ; / A: at most 7,946 at 5.0
+        MOV     R12, 0FE0Eh             ; MDL
+        MOVBZ   R13, POPS_XSTOCK
+        CMP     R13, #128
+        JMPR    ULE, pf_store           ; the car file's byte at lambda 1 or leaner adds nothing
+        SUB     R13, #128
+        SHL     R13, #4                 ; (X - 128) x 16, as the shared path stores it
+        CMP     R13, R12
+        JMPR    ULE, pf_store
+        MOV     R12, R13                ; the car file's own target is the richer
+pf_store:
+        MOV     091A0h, R12
+        MOVBZ   R13, 091B8h
+        MOV     R4, #4096
+        MULU    R13, R4                 ; MD = 91B8 x 4096
+        ADD     R12, #4096
+        DIVLU   R12                     ; / (4096 + 91A0): the real mixture
+        MOV     R4, 0FE0Eh              ; MDL
+        CMP     R4, #255
+        JMPR    ULE, pf_shown
+        MOV     R4, #255
+pf_shown:
+        MOVB    091B9h, RL4
+        MOV     R5, #1000h
+        MOVBZ   R12, 091B8h
+        JMPS    0Bh, 0D4E8h
+pf_stock:
+        MOVBZ   R12, 091B8h
+        JMPS    0Bh, 0D4D8h

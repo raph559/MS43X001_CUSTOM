@@ -3175,10 +3175,10 @@ crc_zero_powers:
         ERROR   "the V10 code overruns the pops defaults"
         ENDIF
 
-; The flashed pops settings: off, 4.0 s, -23.625 deg, 9.99 AFR (210), 4,000 rpm, 70.5 deg C, 3.0 deg TPS, 20 km/h.
+; The flashed pops settings: off, 4.0 s, -23.625 deg, a real AFR of 7.0 (70), 4,000 rpm, 70.5 deg C, 3.0 deg TPS, 20 km/h.
         ORG     0CFF80h
 pops_defaults:
-        DB      000h, 028h, 000h, 0D2h, 07Dh, 09Eh, 01Eh, 014h
+        DB      000h, 028h, 000h, 046h, 07Dh, 09Eh, 01Eh, 014h
 ; 139 pops stabs: a 2.0 s load, +5.0 deg TPS stabs of 150 ms, 250 ms gaps, a 480 rpm rise once stabbing.
 stab_defaults:
         DB      014h, 019h, 00Fh, 019h, 00Fh, 000h, 000h, 000h
@@ -3591,3 +3591,5 @@ data_end:
 
         ORG     0AAAA0h
         JMPS    0Ch, blip_reentry & 0FFFFh
+        ORG     0BD4D4h
+        JMPS    0Ch, pops_fuel & 0FFFFh
