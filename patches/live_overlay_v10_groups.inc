@@ -28,7 +28,7 @@ v10_limits:
         DB      11, 85          ; 141/4 tap threshold, E0FF units (0.46875 deg PVS)
         DB      10, 60          ; 141/5 tap length, 10 ms
         DB      0, 30           ; 141/6 blip lead, 10 ms (V10.1; 0 ends the rise on the rpm itself, as V10)
-        DB      0, 0            ; 141/7 reserved
+        DB      0, 143          ; 141/7 cap angle above the blip's target, 0.375 X - 23.625 deg BTDC (V10.2; 0 = -23.625)
         DB      180, 255        ; 142/0 rpm per km/h of 1st, 0.5 per step
         DB      100, 160        ; 142/1 of 2nd
         DB      70, 110         ; 142/2 of 3rd
