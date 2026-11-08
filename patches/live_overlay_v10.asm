@@ -3597,3 +3597,7 @@ data_end:
 ; back to stock X001; the car file has it x 1.6 at every temperature (23.0 ms at 90 deg C, stock 14.4).
         ORG     0FDE64h
         DB      062h, 09Dh, 002h, 079h, 033h, 053h, 02Ah, 037h, 00Ah, 027h, 06Bh, 017h, 0DAh, 00Eh, 082h, 00Ah
+; V10.2, the owner's choice (2026-11-08, the injectors stock): c_inj_flow, 16 bits little-endian, cm3/min, back to the
+; X001 release's 237; the car file's 225 came with an E85 edit and adds 5.3 % fuel everywhere on petrol.
+        ORG     0F0E14h
+        DB      0EDh, 000h

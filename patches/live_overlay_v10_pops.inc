@@ -4,7 +4,9 @@ POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops windo
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
 POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current stab or gap
-BLIP_CL         EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
+BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding (V10.2);
+                                        ; shares POPS_PH, as no blip runs in a window and every window's start clears it
+BLIP_CL        EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
 BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip rises (V10.1)
@@ -329,6 +331,7 @@ psk_blip:
         MOV     [-R0], R2
         MOV     [-R0], R3
         MOV     [-R0], R4
+        MOV     [-R0], R5
         MOV     R2, #140
         MOV     R3, #7                  ; the blip's own spark angle
         MOVB    RL4, 807Fh
@@ -337,9 +340,20 @@ psk_blip:
         MOV     R2, #141                ; V10.2: above it, the cap angle (141 byte 7)
 psk_angle:
         CALLA   UC, v10_setting
+        MOVBZ   R3, 807Fh               ; V10.2: the most advance now, the last angle + 807F / 4
+        SHR     R3, #2
+        MOVBZ   R5, BLIP_SPK
+        ADD     R3, R5
+        CMP     R4, R3
+        JMPR    ULE, psk_write
+        MOV     R4, R3
+psk_write:
+        MOVB    BLIP_SPK, RL4
         MOVB    0E2B5h, RL4
+psk_written:
         MOV     R4, #0
         MOVB    0E2B4h, RL4
+        MOV     R5, [R0+]
         MOV     R4, [R0+]
         MOV     R3, [R0+]
         MOV     R2, [R0+]
@@ -436,25 +450,27 @@ pth_blip_sum:
 
 
 ; ---- V10.2, the AFR display join (0B:D4D4, MOVBZ R12, 91B8h): both branches of the shared rich path meet here, 91A0
-; set or cleared. When pops_afr forced the rich path in this pass (a window, the pops AFR below 14.7, so 91A0 holds the
-; forced 2032) and the lambda loop is off, the enrichment becomes the real AFR's, (147 - A) x 4096 / A, or the car
-; file's own (POPS_XSTOCK - 128) x 16 when that is richer, and 91B9, the logged target, the real mixture: 91B8 x 4096 /
-; (4096 + 91A0). MULU and DIVLU as the stock 0D:194C uses them at 0B:D4E0 in the same pass; R4, R5, R12, R13 and MD are
-; scratch there, and R5 and R12 are left as the stock code leaves them. Otherwise the displaced instruction runs. ----
+; set (0B:D4BC, L = (X - 128) x 16, with FD9A.10) or cleared. When pops_afr forced the rich path in this pass (a window,
+; the pops AFR below 14.7, so 91A0 holds the forced 2032), the enrichment becomes the real AFR's, (147 - A) x 4096 / A,
+; or the car file's own made real when that is richer, and 91B9, the logged target, the real mixture: 91B8 x 4096 /
+; (4096 + 91A0). Every other pass with a rich target makes it real (every AFR real): 91B9 first, from L, as the stock
+; display, so its numbers stay as today, then 91A0 = afr_real(L). MULU and DIVLU as the stock 0D:194C uses them at
+; 0B:D4E0 in the same pass; R4, R5, R12, R13 and MD are scratch there, and R5 and R12 are left as the stock code leaves
+; them. Without a rich target the displaced instruction runs. ----
 pops_fuel:
-        JNB     0FDF8h.3, pf_stock
-        JNB     0FD2Ch.11, pf_stock
-        JB      0FDF8h.2, pf_stock
-        JNB     0FD9Ah.10, pf_stock
+        JNB     0FD9Ah.10, pf_plain     ; no rich target in this pass
+        JNB     0FDF8h.3, pf_every
+        JNB     0FD2Ch.11, pf_every
+        JB      0FDF8h.2, pf_every
         MOV     R12, 091A0h
         CMP     R12, #2032
-        JMPR    NZ, pf_stock            ; not forced by pops_afr in this pass
+        JMPR    NZ, pf_every            ; not forced by pops_afr in this pass
         MOV     [-R0], R3
         MOV     R3, #3
         CALLA   UC, pops_setting        ; A, the real AFR x 10, 50..147
         MOV     R3, [R0+]
         CMP     R4, #147
-        JMPR    UGE, pf_stock
+        JMPR    UGE, pf_every
         MOV     R12, #147
         SUB     R12, R4
         MOV     R13, #4096
@@ -466,6 +482,7 @@ pops_fuel:
         JMPR    ULE, pf_store           ; the car file's byte at lambda 1 or leaner adds nothing
         SUB     R13, #128
         SHL     R13, #4                 ; (X - 128) x 16, as the shared path stores it
+        CALLA   UC, afr_real            ; made real, as every target
         CMP     R13, R12
         JMPR    ULE, pf_store
         MOV     R12, R13                ; the car file's own target is the richer
@@ -482,9 +499,42 @@ pf_store:
         MOV     R4, #255
 pf_shown:
         MOVB    091B9h, RL4
+pf_done:
         MOV     R5, #1000h
         MOVBZ   R12, 091B8h
         JMPS    0Bh, 0D4E8h
-pf_stock:
+pf_every:                               ; every AFR real
+        MOVBZ   R12, 091B8h
+        MOV     R13, #1000h
+        SUB     R13, 091A0h
+        CALLS   0Dh, 0194Ch             ; the stock display from L (0B:D4D8..D4E0)
+        MOVB    091B9h, RL4
+        MOV     R13, 091A0h
+        CALLA   UC, afr_real
+        MOV     091A0h, R13
+        JMPR    UC, pf_done
+pf_plain:
         MOVBZ   R12, 091B8h
         JMPS    0Bh, 0D4D8h
+
+; V10.2: R13 = L, an enrichment as the shared rich path stores it ((X - 128) x 16, -2048..2032). Return R13 = the real
+; AFR's, L x 4096 / (4096 - L), signed and truncated toward zero: the byte the XDF shows as AFR 14.7 x (384 - X) / 256
+; then gives that AFR. Changes R4, MD and PSW.
+afr_real:
+        MOV     R4, R13
+        JB      R13.15, ar_lean
+        MOV     R13, #4096
+        MULU    R4, R13                 ; MD = L x 4096
+        SUB     R13, R4                 ; 4096 - L, 2064..4096
+        DIVLU   R13
+        MOV     R13, 0FE0Eh             ; MDL, at most 4,032
+        RET
+ar_lean:
+        NEG     R4                      ; -L
+        MOV     R13, #4096
+        MULU    R4, R13                 ; MD = -L x 4096
+        ADD     R13, R4                 ; 4096 - L, 4112..6144
+        DIVLU   R13
+        MOV     R13, 0FE0Eh             ; MDL, at most 1,365
+        NEG     R13
+        RET
