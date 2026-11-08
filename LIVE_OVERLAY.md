@@ -302,7 +302,7 @@ The owner edits while the car is being driven, so the design has to be safe by c
    (which ends at 0C:A8CB) [obs]. The CRC descriptor must be extended, as MS43X did, and all
    five checksums recomputed (`tools/ms43_checksums.py --fix`). The program monitor sum covers
    only 0D:0000–0D:3BF8 and 0E:E876–0E:E878 and is unaffected by code placed at 0C:B545.
-4. **The app side** lives in `MS43_LOGGER`; it already reads
+4. **The app side** lives in [MS43 Tuner](https://github.com/raph559/MS43_TUNER); it already reads
    TunerPro XDFs, so the new MS43X001 XDF gives it named, scaled, car-accurate maps with no
    further definition work. It needs the live-edit command and the upload path added.
 

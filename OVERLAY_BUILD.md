@@ -375,7 +375,7 @@ The pass condition, once the bench is fixed:
 
 ---
 
-## 11. The app side (`MS43_LOGGER`)
+## 11. The app side ([MS43 Tuner](https://github.com/raph559/MS43_TUNER))
 
 The app already reads TunerPro XDFs, so the MS43X001 definition gives it named, scaled,
 car-accurate maps (verified: `show --bin CAR…bin --xdf … ip_iga_ron98_pl__n__maf`).
