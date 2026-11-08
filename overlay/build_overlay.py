@@ -1,4 +1,4 @@
-"""Build the live-tuning overlay (V10.2) into a copy of your own MS43X001 bin.
+"""Build the live-tuning overlay (V10.3) into a copy of your own MS43X001 bin.
 
     python -I build_overlay.py YOUR.bin [--out OUT.bin] [--asl-dir DIR] [--wsl DISTRO]
 
@@ -17,7 +17,7 @@ Steps:
      differ from MS43X001's. Every write-list site must be written.
   4. Apply the records, check the overlay header and the program CRC range, fix and verify the five
      checksums, and check that the calibration is unchanged.
-  5. Write OUT (default: YOUR-live-overlay-v10_2.bin next to it). Your bin is only read.
+  5. Write OUT (default: YOUR-live-overlay-v10_3.bin next to it). Your bin is only read.
 
 Nothing here flashes anything. Keep your original bin, and flash the result only if you can flash back.
 AS is Alfred Arnold's Macro Assembler: http://john.ccac.rwth-aachen.de:8000/as/
@@ -120,7 +120,7 @@ def assemble(asl_dir, distro):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("bin", help="your MS43X001 bin (only read)")
-    parser.add_argument("--out", help="the bin to write (default: next to yours, -live-overlay-v10_2.bin)")
+    parser.add_argument("--out", help="the bin to write (default: next to yours, -live-overlay-v10_3.bin)")
     parser.add_argument("--asl-dir", help="the folder with asl and p2hex (native, or a WSL path)")
     parser.add_argument("--wsl", default="Ubuntu-24.04", help="the WSL distribution to run AS in, when it is not native")
     args = parser.parse_args()
@@ -132,7 +132,7 @@ def main():
     if program not in SUPPORTED:
         fail("this bin's program is not one this overlay is built for (program identity %s).\n"
              "It needs an unpatched MS43X001 program; the calibration may be anything." % program)
-    out = args.out or os.path.splitext(args.bin)[0] + "-live-overlay-v10_2.bin"
+    out = args.out or os.path.splitext(args.bin)[0] + "-live-overlay-v10_3.bin"
     if os.path.abspath(out) == os.path.abspath(args.bin):
         fail("--out must not be your bin")
     print("program: %s" % SUPPORTED[program])

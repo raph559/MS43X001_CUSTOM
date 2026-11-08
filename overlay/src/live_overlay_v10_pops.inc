@@ -1,12 +1,10 @@
 ; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13; FDF8.14 and
 ; FDF8.15 belong to the car file.
-POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops window started, saturating
+                                        ; 09F9Ch: free (V10.2's stab clock)
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
-POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current stab or gap
 BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding, FFh
-                                        ; until its first (V10.2); shares POPS_PH, as no blip runs in a window and every
-                                        ; window's start clears it
+                                        ; until its first (V10.2)
 BLIP_CL        EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
@@ -14,8 +12,8 @@ BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip 
 BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
 POPS_XSTOCK     EQU     09FA7h          ; byte: in a pops window, the car file's own target byte (V10.2); shares BLIP_RATE,
                                         ; as no blip runs in a window and every blip's start resets the rate
-POPS_STABS      EQU     09FBFh          ; byte: the stabs begun in this pops window, up to 255, for the log (V10.1)
-POPS_STAB       BIT     0FDF8h.7        ; a stab is on
+                                        ; 09FBFh: free (V10.2's stab count)
+SPK_RAMP        BIT     0FDF8h.7        ; V10.3: the spark comes back from the blip's last angle, ramped (V10.2's stab bit)
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
 BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
 BLIP_ARMED      BIT     0FDF8h.10       ; the pedal has been below the tap threshold since the clutch went in
@@ -28,7 +26,7 @@ GUARD           BIT     0FDF8h.13       ; the torque guard is acting
 ; the 10 ms ticks left and the lowest RPM byte (807F) seen in the window.
 
 POPS_LEFT       EQU     09FBCh          ; word: 10 ms ticks left in the window
-POPS_MIN        EQU     09FBEh          ; byte: the lowest 807F in the window (09FBFh: POPS_STABS, V10.1)
+POPS_MIN        EQU     09FBEh          ; byte: the lowest 807F in the window (09FBFh reserved)
 
 ; ---- the limits of group 138: lowest and highest value of each byte; a switch above its highest reads as 0 ----
 pops_limits:
@@ -195,7 +193,6 @@ pg_pops:
         ADD     R4, R3
         ADD     R4, R3
         MOV     POPS_LEFT, R4
-        CALLA   UC, stab_start
         MOVB    RL4, 807Fh
         MOVB    POPS_MIN, RL4
         JMPR    UC, pg_stay
@@ -207,9 +204,9 @@ pg_running:
         JMPR    Z, pg_end
         MOVBZ   R4, POPS_MIN
         MOVBZ   R3, 807Fh
-        MOV     R5, R4
-        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing
-        CMP     R3, R5
+        MOV     R2, R4
+        ADD     R2, #5
+        CMP     R3, R2
         JMPR    UGE, pg_end             ; the engine is pushing, or the car is speeding up
         CMP     R3, R4
         JMPR    UGE, pg_stay
@@ -217,7 +214,6 @@ pg_running:
         JMPR    UC, pg_stay
 pg_end:
         BCLR    0FDF8h.3
-        BCLR    POPS_STAB
 pg_cut:
         MOV     R5, [R0+]
         MOV     R4, [R0+]
@@ -241,7 +237,6 @@ pops_tick:
         JB      0FD2Ch.11, pt_overrun
         JB      0FD2Ch.12, pt_overrun
         BCLR    0FDF8h.3
-        BCLR    POPS_STAB
         JB      0FD2Eh.6, pt_rearm_done ; the clutch in: not a press that re-arms the pops
         BCLR    0FDF8h.4
 pt_rearm_done:
@@ -252,7 +247,6 @@ pt_overrun:
 pt_brake:
         BSET    0FDF8h.4                ; braking uses up this lift's pops
         BCLR    0FDF8h.3
-        BCLR    POPS_STAB
         RET
 pt_no_brake:
         JNB     0FDF8h.3, pt_done
@@ -269,7 +263,7 @@ pt_no_brake:
         MOVBZ   R4, POPS_MIN
         MOVBZ   R3, 807Fh
         MOV     R5, R4
-        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing
+        ADD     R5, #5
         CMP     R3, R5
         JMPR    ULT, pt_no_rise
         MOV     R2, #0                  ; the engine is pushing, or the car is speeding up
@@ -280,7 +274,6 @@ pt_no_rise:
 pt_kept:
         CMP     R2, #0
         JMPR    Z, pt_stop
-        CALLA   UC, stab_tick
         MOV     R5, [R0+]
         MOV     R2, [R0+]
         MOV     R4, #100
@@ -293,7 +286,6 @@ pt_stop:
         MOV     R2, [R0+]
 pt_end:
         BCLR    0FDF8h.3
-        BCLR    POPS_STAB
         RET
 
 ; ---- the pedal-released skip (0B:D3B2, JNB FD44.3): with the pedal released the stock code skips the AFR target
@@ -311,8 +303,9 @@ pg_skip:
 ; per-cylinder angles are taken from (E2B5, the encoding of ip_iga_puc). Knock retard is not applied in overrun. ----
 pops_spark:
         JB      BLIP_ON, psk_blip
-        JNB     0FDF8h.3, psk_stock
-        JNB     0FD2Ch.11, psk_stock
+        JNB     0FDF8h.3, psk_ramp
+        JNB     0FD2Ch.11, psk_ramp
+        BCLR    SPK_RAMP                ; V10.3: a pops window fires its own angle
         PUSH    0FF10h                  ; PSW
         MOV     [-R0], R3
         MOV     [-R0], R4
@@ -327,7 +320,7 @@ pops_spark:
 psk_stock:
         JMPS    0Bh, 05C84h
 psk_blip:
-        JNB     0FD2Ch.11, psk_stock
+        JNB     0FD2Ch.11, psk_ramp     ; V10.3: out of overrun the stock angle comes back ramped
         PUSH    0FF10h                  ; PSW
         MOV     [-R0], R2
         MOV     [-R0], R3
@@ -354,6 +347,7 @@ psk_angle:
         JMPR    ULE, psk_write
         MOV     R4, R3
 psk_write:
+        BSET    SPK_RAMP                ; V10.3: the stock angle will come back from this one
         MOVB    BLIP_SPK, RL4
         MOVB    0E2B5h, RL4
 psk_written:
@@ -363,6 +357,34 @@ psk_written:
         MOV     R4, [R0+]
         MOV     R3, [R0+]
         MOV     R2, [R0+]
+        POP     0FF10h                  ; PSW
+        JMPS    0Bh, 05C84h
+psk_ramp:                               ; V10.3: the hand-over from the blip to the stock angle
+        JNB     SPK_RAMP, psk_stock
+        PUSH    0FF10h                  ; PSW
+        MOV     [-R0], R3
+        MOV     [-R0], R4
+        MOV     [-R0], R5
+        MOVBZ   R3, 807Fh
+        CMP     R3, #25
+        JMPR    ULT, pr_end            ; under 800 rpm
+        SHR     R3, #2
+        MOVBZ   R5, BLIP_SPK
+        ADD     R3, R5                  ; the most advance now
+        MOVBZ   R4, 0E2B5h              ; the stock angle
+        CMP     R4, R3
+        JMPR    ULE, pr_end             ; reached: the stock angle from here
+        MOVB    BLIP_SPK, RL3
+        MOVB    0E2B5h, RL3
+        MOV     R4, #0
+        MOVB    0E2B4h, RL4
+        JMPR    UC, pr_out
+pr_end:
+        BCLR    SPK_RAMP
+pr_out:
+        MOV     R5, [R0+]
+        MOV     R4, [R0+]
+        MOV     R3, [R0+]
         POP     0FF10h                  ; PSW
         JMPS    0Bh, 05C84h
 
@@ -424,19 +446,6 @@ pops_throttle:
         JMPR    NC, pth_sum
         MOV     R4, #0FFFFh
 pth_sum:
-        JNB     POPS_STAB, pth_done
-        JB      GUARD, pth_done
-        MOV     [-R0], R4               ; the stock setpoint plus the opening
-        MOV     R2, #139
-        MOV     R3, #1
-        CALLA   UC, v10_setting         ; the stab size
-        CALLA   UC, opening_units
-        MOV     R2, R4
-        MOV     R4, [R0+]
-        ADD     R4, R2
-        JMPR    NC, pth_done
-        MOV     R4, #0FFFFh
-pth_done:
         MOV     R3, [R0+]
         MOV     R2, [R0+]
         POP     0FF10h                  ; PSW
