@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" role="img" aria-labelledby="t d">
+  <title id="t">How the live-tuning overlay works</title>
+  <desc id="d">In your bin, MS43X001's code jumps at 216 hook sites to the overlay code in MS43X001's free flash block. The overlay reads each supported map from its live copy in the ECU's RAM, or from flash when it is off. Your calibration stays unchanged and is copied to RAM when you pick a map. MS43 Tuner sends checked edits to the RAM copies over DS2 on the K-line.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8a9bb0"/>
+    </marker>
+    <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#f28c28"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e6edf3; }
+      .h { font-size: 24px; font-weight: 600; }
+      .s { font-size: 17px; fill: #9fb0c3; }
+      .g { font-size: 14px; font-weight: 600; fill: #f28c28; letter-spacing: 1.5px; }
+      .l { font-size: 16px; fill: #c9d4e0; }
+      .box { fill: #1b2633; stroke: #3a4a5c; stroke-width: 1.5; }
+      .key { fill: #26211b; stroke: #f28c28; stroke-width: 1.5; }
+      .ln { stroke: #8a9bb0; stroke-width: 2; fill: none; }
+      .lo { stroke: #f28c28; stroke-width: 2.2; fill: none; }
+    </style>
+  </defs>
+  <rect width="1200" height="520" rx="18" fill="#0f1720"/>
+
+  <!-- flash -->
+  <rect x="28" y="36" width="560" height="452" rx="14" fill="none" stroke="#3a4a5c" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text class="g" x="50" y="66">YOUR BIN, IN FLASH</text>
+
+  <rect class="box" x="50" y="86" width="250" height="118" rx="10"/>
+  <text class="h" x="175" y="126" text-anchor="middle">MS43X001</text>
+  <text class="s" x="175" y="152" text-anchor="middle">its own code, as</text>
+  <text class="s" x="175" y="174" text-anchor="middle">MS4X released it</text>
+
+  <rect class="box" x="320" y="86" width="246" height="118" rx="10"/>
+  <text class="h" x="443" y="126" text-anchor="middle">Your tune</text>
+  <text class="s" x="443" y="152" text-anchor="middle">maps and settings,</text>
+  <text class="s" x="443" y="174" text-anchor="middle">left unchanged</text>
+
+  <path class="lo" d="M175 204V318" marker-end="url(#o)"/>
+  <text class="l" x="188" y="252">216 hook</text>
+  <text class="l" x="188" y="274">sites jump</text>
+  <text class="l" x="188" y="296">to the overlay</text>
+
+  <rect class="key" x="50" y="324" width="350" height="140" rx="10"/>
+  <text class="h" x="225" y="362" text-anchor="middle">Live-tuning overlay</text>
+  <text class="s" x="225" y="390" text-anchor="middle">in MS43X001's free flash block</text>
+  <text class="s" x="225" y="414" text-anchor="middle">reads the live copy, or the</text>
+  <text class="s" x="225" y="436" text-anchor="middle">flashed map when it is off</text>
+
+  <!-- RAM -->
+  <rect class="box" x="620" y="324" width="230" height="140" rx="10"/>
+  <text class="h" x="735" y="362" text-anchor="middle">Live copies</text>
+  <text class="s" x="735" y="390" text-anchor="middle">in the ECU's RAM,</text>
+  <text class="s" x="735" y="412" text-anchor="middle">gone at power-off</text>
+
+  <path class="lo" d="M400 394H614" marker-end="url(#o)"/>
+  <text class="l" x="507" y="382" text-anchor="middle">reads the maps</text>
+
+  <path class="ln" d="M566 145H735V318" stroke-dasharray="7 6" marker-end="url(#a)"/>
+  <text class="l" x="750" y="230">copied when you</text>
+  <text class="l" x="750" y="252">pick a map</text>
+
+  <!-- app -->
+  <rect class="key" x="950" y="324" width="222" height="140" rx="10"/>
+  <text class="h" x="1061" y="362" text-anchor="middle">MS43 Tuner</text>
+  <text class="s" x="1061" y="390" text-anchor="middle">you edit, send,</text>
+  <text class="s" x="1061" y="412" text-anchor="middle">switch A / B</text>
+
+  <path class="lo" d="M944 394H856" marker-end="url(#o)"/>
+  <text class="l" x="900" y="280" text-anchor="middle">checked edits over</text>
+  <text class="l" x="900" y="302" text-anchor="middle">DS2 on the K-line</text>
+  <path class="ln" d="M900 310V384"/>
+</svg>
