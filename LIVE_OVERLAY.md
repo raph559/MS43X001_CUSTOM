@@ -2,10 +2,10 @@
 
 > **2026-10-24:** built as `patches/live_overlay.asm` (plan 6): the RON98 ignition, idle ignition,
 > RON98 λ target and both part-load cam targets, switched over the K-line by DS2 command 0x6D. The
-> bin is proven in the emulator, not flashed; see the source contract.
+> bin is proven in the emulator, not flashed; see `docs/superpowers/plans/2026-10-22-ms43-emulator-plan6-record.md`.
 
 > **2026-10-22:** the scope is replaced by
-> the source contract. Two corrections to this
+> `docs/superpowers/specs/2026-10-22-live-tuning-overlay-design.md`. Two corrections to this
 > document: the VE maps are **not** the car's fuel map, because the car takes its load from the MAF
 > (0x70DF3 = 1) and the VE maps feed the air model; and free flash starts at **0x4B544**, not
 > 0x4B545.

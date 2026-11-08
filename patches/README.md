@@ -10,13 +10,13 @@
 
 
 > **2026-10-24: the live-tuning overlay is now `patches/live_overlay.asm`** (plan 6), a new patch
-> written from the approved design (the source contract).
+> written from the approved design (`docs/superpowers/specs/2026-10-22-live-tuning-overlay-design.md`).
 > It is built by `python -I tools/build_live_overlay.py`, which assembles it with AS, refuses any
 > warning but "page might not be addressable" and any record outside its write list, applies it to
 > a copy of the car file, fixes and verifies the five checksums, and writes
 > `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY.bin` (not committed) and the committed test fixture
 > `sim/tests/Ms43Sim.Tests/fixtures/live_overlay.hex`. Its contract as built (DS2 command 0x6D), what
-> was proven in the emulator, the rulings and the open items are in the source contract.
+> was proven in the emulator, the rulings and the open items are in `docs/superpowers/plans/2026-10-22-ms43-emulator-plan6-record.md`.
 > It is proven in the emulator only: **nothing built from it is flashed or handed over without the
 > owner's explicit go-ahead.**
 >

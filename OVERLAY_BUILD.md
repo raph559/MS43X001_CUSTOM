@@ -3,10 +3,10 @@
 > **2026-10-24:** built as `patches/live_overlay.asm` (plan 6), five tables (the owner took the pedal
 > map and the fuel constant out). The bin is proven in the emulator, not flashed. Its build, its
 > contract and what was proven are in `patches/README.md` and
-> the source contract.
+> `docs/superpowers/plans/2026-10-22-ms43-emulator-plan6-record.md`.
 
 > **2026-10-22:** the scope is replaced by
-> the source contract (more tables, A/B, safety
+> `docs/superpowers/specs/2026-10-22-live-tuning-overlay-design.md` (more tables, A/B, safety
 > rules, emulator support). The addresses and conventions below stay the reference where that
 > design does not change them, except the free flash start: **0x4B544**, not 0x4B545.
 

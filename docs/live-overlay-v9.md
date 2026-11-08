@@ -4,8 +4,8 @@ V9 adds two things to [V8](live-overlay-v8.md). The **watch**: the ECU records t
 in one map, the one on the app's screen, and returns it with each logging reply. The **triggers**:
 launch control, no-lift shift and rolling anti-lag can be made ready by the A/C button or another CAN
 bit, as V8's pops switch can. Everything else keeps V8's IDs, addresses, protocol rules and checks.
-The design is the source contract, and the plan is
-the source contract.
+The design is `docs/superpowers/specs/2026-10-28-v9-watched-map-design.md`, and the plan is
+`docs/superpowers/plans/2026-10-29-live-overlay-v9-watched-map.md`.
 
 ## Identification
 

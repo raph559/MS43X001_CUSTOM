@@ -4,8 +4,8 @@ V8 adds one settings group to [V7](live-overlay-v7.md), group 138, "Pops & bangs
 in gear, the group holds off the overrun fuel cut for a set time. During that time the engine runs
 rich, the spark is fixed and very late, and the throttle may open a little. Everything else keeps
 V7's IDs, addresses, protocol rules and checks. The design is
-the source contract, and the plan is
-the source contract.
+`docs/superpowers/specs/2026-10-28-live-overlay-v8-pops-design.md`, and the plan is
+`docs/superpowers/plans/2026-10-28-live-overlay-v8-pops.md`.
 
 ## Identification and the group
 

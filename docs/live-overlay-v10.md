@@ -4,8 +4,8 @@ V10 adds two things to [V9](live-overlay-v9.md). The **stabs**: a pops window fi
 opening, then gives the throttle short stabs, so the bangs come as a series instead of a crackle. The **blip**: on a
 downshift the ECU opens the throttle by itself, either while braking or after a short tap of the pedal, toward the
 lower gear's rpm at the road speed. Everything else keeps V9's IDs, addresses, protocol rules and checks. The design
-is the source contract, and the plan is
-the source contract.
+is `docs/superpowers/specs/2026-11-04-live-overlay-v10-stabs-blip-design.md`, and the plan is
+`docs/superpowers/plans/2026-11-05-live-overlay-v10-stabs-blip.md`.
 
 ## Identification
 
@@ -193,7 +193,7 @@ overshooting by 350 to 700 rpm, and the pops "not working AT ALL" (owner): the w
 loud noise, a stab pushed the car, and V8's 160 rpm rise rule ended each window after one or two stabs, since on the
 car a stab adds about 200 rpm. The owner's decisions: "put it by default plz" (the pops settings below), "do it by
 default" (a 20.0 °TPS blip), "lets do it" (the blip's predictive end, and the faults in the log), "it needs way more
-fuel i believe, and less pedal openning". The plan is the source contract. On
+fuel i believe, and less pedal openning". The plan is `docs/superpowers/plans/2026-11-05-live-overlay-v10-1.md`. On
 2026-11-06 the owner asked for a really fast blip and chose "Make it the default": the blip opening went to its limit,
 30.0 °TPS, and its spark to +20.25° (the car's own maps give 23 to 34° at part load from 1,500 to 4,500 rpm). The
 V10.1 sent first (`b4568706…9396`) flashed 20.0 °TPS at +10.1°; the two builds differ in those two bytes and the
@@ -298,8 +298,8 @@ was 1.5 × the fuel, a real AFR of about 9.8. The owner's decisions: "yes i appr
 too", "Yes, one bin", "Yes, in V10.2" (the start fuel), "ok sounds good, lets do that" (every AFR real), "Yes, stock"
 (the injectors), and for the blip's start "i dont want the blip to feel soft, i want them to feel very sharp, like
 racecars, or like i would do it myself with double clutch". The design is
-the source contract, the plan
-the source contract.
+`docs/superpowers/specs/2026-11-08-live-overlay-v10-2-design.md`, the plan
+`docs/superpowers/plans/2026-11-08-live-overlay-v10-2.md`.
 
 - **Identification.** V10's sources are edited in place again. The header word is `020Ah` (minor 2, V10.1's way). The
   build writes `build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_2.bin` (SHA-256 `a95b2c91…c1f7`), program identity
