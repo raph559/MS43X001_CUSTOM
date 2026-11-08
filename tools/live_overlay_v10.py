@@ -2,7 +2,12 @@
 
 V10.1 (2026-11-05, after the first car test) is V10 with new defaults, the rise allowed once stabbing (139 byte 4),
 the blip lead (141 byte 6), a pops AFR target down to 7.4 and three minors from V10's review. The header's version word
-is 010Ah: the low byte stays 10, so every V10 rule holds, and the high byte is the minor (V8.5's way)."""
+is 010Ah: the low byte stays 10, so every V10 rule holds, and the high byte is the minor (V8.5's way).
+
+V10.3 (2026-11-08, the owner: "remove the stab logic from the pops") takes the stabs out: a pops window holds pops' own
+opening (138 byte 6) for its whole time and ends at V8's 160 rpm rise, as V9's. Group 139 stays in the catalogue as a
+reserved group, every byte limited to 0, so its ID and the groups after it keep their places; its flashed bytes are 0.
+The stab count in the log (09FBFh) is gone. Everything else is V10.2's: the blip, its cap, the real AFRs."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,16 +15,16 @@ ROOT = Path(__file__).resolve().parents[1]
 # Groups 138..142 are 8 bytes each from 0C:FF80 (file 0x4FF80): pops, then V10's four (catalogue page 33h).
 DEFAULTS_FILE = 0x4FF80
 # V10.1's defaults (owner, 2026-11-05: "put it by default plz", "do it by default"): pops at -23.625 deg, AFR 9.99,
-# 4,000 rpm and 3.0 deg TPS with 5.0 deg TPS stabs and a 480 rpm rise once stabbing; a 30.0 deg TPS blip at +20.25 deg
+# 4,000 rpm and 3.0 deg TPS (V10.3: no stabs); a 30.0 deg TPS blip at +20.25 deg
 # (2026-11-06: "Make it the default"), a 150 ms lead.
 POPS_DEFAULTS = bytes([0x00, 0x28, 0x00, 0x46, 0x7D, 0x9E, 0x1E, 0x14])    # V10.2: byte 3 is the real AFR x 10, 7.0
-STAB_DEFAULTS = bytes([0x14, 0x19, 0x0F, 0x19, 0x0F, 0, 0, 0])
+STAB_DEFAULTS = bytes(8)                      # V10.3: group 139 is reserved
 BLIP_DEFAULTS = bytes([0x00, 0x03, 0x1E, 0xBB, 0x0F, 0x96, 0x19, 0x75])
 GEARS_DEFAULTS = bytes([0x01, 0x01, 0x01, 0x00, 0x15, 0x28, 0x0F, 0])
 RATIO_DEFAULTS = bytes([0xE2, 0x86, 0x59, 0x43, 0, 0, 0, 0])
 DEFAULTS = POPS_DEFAULTS + STAB_DEFAULTS + BLIP_DEFAULTS + GEARS_DEFAULTS + RATIO_DEFAULTS
 
-GROUPS = [dict(id=139, name="pops_stabs", address=0xCFF88, bytes=8, flags=2, fields=5),
+GROUPS = [dict(id=139, name="reserved", address=0xCFF88, bytes=8, flags=2, fields=0),
           dict(id=140, name="blip", address=0xCFF90, bytes=8, flags=2, fields=8),
           dict(id=141, name="blip_gears", address=0xCFF98, bytes=8, flags=2, fields=7),
           dict(id=142, name="blip_ratios", address=0xCFFA0, bytes=8, flags=2, fields=4)]
@@ -146,13 +151,11 @@ ar_lean:
 # watch record, and FDF8 bits 7..13, which no code in the car file or in V9 uses.
 V10_STATE = """; V10's state (docs/live-overlay-v10.md): pool A logical 668..679, through DPP2, and FDF8 bits 7..13; FDF8.14 and
 ; FDF8.15 belong to the car file.
-POPS_T          EQU     09F9Ch          ; word: 10 ms ticks since the pops window started, saturating
+                                        ; 09F9Ch: free (V10.2's stab clock)
 BLIP_ADD        EQU     09F9Eh          ; word: the blip's throttle addition now, 86A4 units
 BLIP_LEFT       EQU     09FA0h          ; word: 10 ms ticks left in the blip
-POPS_PH         EQU     09FA2h          ; byte: 10 ms ticks left in the current stab or gap
 BLIP_SPK        EQU     09FA2h          ; byte: while a blip runs, the spark angle it wrote last, E2B5's encoding, FFh
-                                        ; until its first (V10.2); shares POPS_PH, as no blip runs in a window and every
-                                        ; window's start clears it
+                                        ; until its first (V10.2)
 BLIP_CL        EQU     09FA3h          ; byte: 10 ms ticks since the clutch went in, saturating; 0 while it is released
 BLIP_TGT        EQU     09FA4h          ; byte: the blip's target, 807F units (32 rpm)
 BLIP_TAP        EQU     09FA5h          ; byte: 10 ms ticks since the pedal rose past the tap threshold
@@ -160,8 +163,8 @@ BLIP_PREV       EQU     09FA6h          ; byte: 807F one tick ago, while a blip 
 BLIP_RATE       EQU     09FA7h          ; byte: the rise per 10 ms tick x 16, filtered, while a blip rises (V10.1)
 POPS_XSTOCK     EQU     09FA7h          ; byte: in a pops window, the car file's own target byte (V10.2); shares BLIP_RATE,
                                         ; as no blip runs in a window and every blip's start resets the rate
-POPS_STABS      EQU     09FBFh          ; byte: the stabs begun in this pops window, up to 255, for the log (V10.1)
-POPS_STAB       BIT     0FDF8h.7        ; a stab is on
+                                        ; 09FBFh: free (V10.2's stab count)
+SPK_RAMP        BIT     0FDF8h.7        ; V10.3: the spark comes back from the blip's last angle, ramped (V10.2's stab bit)
 BLIP_ON         BIT     0FDF8h.8        ; a blip is running
 BLIP_USED       BIT     0FDF8h.9        ; this clutch press has had its blip, or the pedal is the driver's for it
 BLIP_ARMED      BIT     0FDF8h.10       ; the pedal has been below the tap threshold since the clutch went in
@@ -190,7 +193,7 @@ def prepare(image):
     source = source.replace("protocol 9", "protocol 10").replace("docs/live-overlay-v9.md", "docs/live-overlay-v10.md")
     source = _replace(source, "OVL_VERSION     EQU     9 ", "OVL_VERSION     EQU     10")
     source = _replace(source, "N_TABLES        EQU     139", "N_TABLES        EQU     143")
-    source = _replace(source, "        DW      OVL_VERSION\n", "        DW      OVL_VERSION + 0200h     ; V10.2: the high byte is the minor\n")
+    source = _replace(source, "        DW      OVL_VERSION\n", "        DW      OVL_VERSION + 0300h     ; V10.3: the high byte is the minor\n")
     source = source.replace("C0D9", "C0DA")
     # Pool A keeps its last 36 bytes: V10's state (041F9C..041FA7), the watch record and pops' state. No allocation may
     # reach logical offset 668, and the free space reported to the app is 896 bytes.
@@ -201,7 +204,7 @@ def prepare(image):
     source = _replace(source, '"live_overlay_v9_pops.inc"', '"live_overlay_v10_pops.inc"')
     source = _replace(source, "        DW      0033h, 03F80h, 8, 2 ; 138 pops\n",
                       "        DW      0033h, 03F80h, 8, 2 ; 138 pops\n"
-                      "        DW      0033h, 03F88h, 8, 2 ; 139 pops stabs\n"
+                      "        DW      0033h, 03F88h, 8, 2 ; 139 reserved (V10.3: no stabs)\n"
                       "        DW      0033h, 03F90h, 8, 2 ; 140 downshift blip\n"
                       "        DW      0033h, 03F98h, 8, 2 ; 141 downshift blip: gears and tap\n"
                       "        DW      0033h, 03FA0h, 8, 2 ; 142 downshift blip: gear ratios\n")
@@ -216,7 +219,7 @@ def prepare(image):
                       "3.0 deg TPS, 20 km/h.\n")
     source = _replace(source, "pops_defaults:\n        DB      000h, 014h, 017h, 0B8h, 032h, 09Eh, 000h, 014h\n",
                       "pops_defaults:\n" + _db(POPS_DEFAULTS)
-                      + "; 139 pops stabs: a 2.0 s load, +5.0 deg TPS stabs of 150 ms, 250 ms gaps, a 480 rpm rise once stabbing.\n"
+                      + "; 139 reserved (V10.3: the stabs are gone).\n"
                       + "stab_defaults:\n" + _db(STAB_DEFAULTS)
                       + "; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 30.0 and 5.0 deg TPS, +20.25 deg.\n"
                       + "blip_defaults:\n" + _db(BLIP_DEFAULTS)
@@ -250,8 +253,7 @@ def prepare(image):
                       "        CALLA   UC, pops_tick\n        CALLA   UC, guard_tick\n        CALLA   UC, watch_quiet\n")
     # Task 5, the blip: housekeeping runs it right after the guard, every 10 ms.
     source = _replace(source, "        CALLA   UC, guard_tick\n", "        CALLA   UC, guard_tick\n        CALLA   UC, blip_tick\n")
-    # Task 2, the stabs: a window's start resets the phases; the tick runs them while every condition holds; every way a
-    # window ends clears POPS_STAB; the throttle store adds the stab's extra while POPS_STAB is set and GUARD is clear.
+    # The blip's code and the torque guard (V10.3: the stabs are gone from it).
     source = _replace(source, '        INCLUDE "live_overlay_v10_groups.inc"\n',
                       '        INCLUDE "live_overlay_v10_groups.inc"\n        INCLUDE "live_overlay_v10_blip.inc"\n')
     # V10.2: the pops AFR target is the real AFR x 10, 5.0..14.7 in petrol AFR (a lambda, A/147, on either fuel). pops_afr
@@ -268,36 +270,8 @@ def prepare(image):
                     "        MOV     R12, #255               ; forces the shared rich path: the lambda loop off, 91A0 = 2032\n"
                     "pa_pass:\n        MOV     R13, R12                ; the same value for both fuels, so the blend returns it\n")
     pops += POPS_FUEL
-    # V10.1, the rise once stabbing: a stab adds about 200 rpm on the car (2026-11-05), so V8's 160 rpm rule ended each
-    # window after one or two stabs. rise_allowance keeps 160 rpm during the load and uses 139 byte 4 once stabbing.
-    pops = _replace(pops, "        MOV     R5, R4\n        ADD     R5, #5\n        CMP     R3, R5\n",
-                    "        MOV     R5, R4\n        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing\n"
-                    "        CMP     R3, R5\n")
-    # The overrun-cut gate checks the rise too, on every request of the stock cut (the V10.1 review): it ended every
-    # stabbing window at 160 rpm until it used the same allowance. R5 is free there once the conditions are checked.
-    pops = _replace(pops, "        MOV     R2, R4\n        ADD     R2, #5\n        CMP     R3, R2\n        JMPR    UGE, pg_end",
-                    "        MOV     R5, R4\n        CALLA   UC, rise_allowance      ; + 160 rpm, or 139 byte 4 once stabbing\n"
-                    "        CMP     R3, R5\n        JMPR    UGE, pg_end")
-    # V10.1, the log: pops' spare byte after POPS_MIN counts the stabs begun in the window (stab_start, stab_tick).
-    pops = _replace(pops, "(09FBFh reserved)", "(09FBFh: POPS_STABS, V10.1)")
-    pops = _replace(pops, "        MOV     POPS_LEFT, R4\n        MOVB    RL4, 807Fh\n",
-                    "        MOV     POPS_LEFT, R4\n        CALLA   UC, stab_start\n        MOVB    RL4, 807Fh\n")
-    pops = _replace(pops, "pg_end:\n        BCLR    0FDF8h.3\n", "pg_end:\n        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n")
-    pops = _replace(pops, "pops_tick:\n        JB      0FD2Ch.11, pt_overrun\n        JB      0FD2Ch.12, pt_overrun\n"
-                          "        BCLR    0FDF8h.3\n",
-                    "pops_tick:\n        JB      0FD2Ch.11, pt_overrun\n        JB      0FD2Ch.12, pt_overrun\n"
-                    "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n")
-    pops = _replace(pops, "pt_kept:\n        CMP     R2, #0\n        JMPR    Z, pt_stop\n",
-                    "pt_kept:\n        CMP     R2, #0\n        JMPR    Z, pt_stop\n        CALLA   UC, stab_tick\n")
-    pops = _replace(pops, "pt_end:\n        BCLR    0FDF8h.3\n        RET\n",
-                    "pt_end:\n        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n        RET\n")
-    pops = _replace(pops, "pth_sum:\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n",
-                    "pth_sum:\n        JNB     POPS_STAB, pth_done\n        JB      GUARD, pth_done\n"
-                    "        MOV     [-R0], R4               ; the stock setpoint plus the opening\n"
-                    "        MOV     R2, #139\n        MOV     R3, #1\n        CALLA   UC, v10_setting         ; the stab size\n"
-                    "        CALLA   UC, opening_units\n        MOV     R2, R4\n        MOV     R4, [R0+]\n        ADD     R4, R2\n"
-                    "        JMPR    NC, pth_done\n        MOV     R4, #0FFFFh\n"
-                    "pth_done:\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n")
+    # V10.3: no stabs. The window keeps V9's rise rule (160 rpm) in the tick and the gate, its own opening throughout,
+    # and 09FBFh stays reserved.
     # Task 3, the brake: either switch (FD2E.3 the brake light switch, FD2E.4 the brake test switch) blocks a window and
     # ends a running one, and braking in overrun uses up the lift (FDF8.4). Out of overrun the lift is re-armed only with
     # the clutch released, so a tap with the clutch in does not bring the pops back (owner, 2026-11-05).
@@ -305,14 +279,14 @@ def prepare(image):
                     "        JB      0FD2Eh.6, pc_done       ; clutch pressed: the clutch belongs to NLS\n"
                     "        JB      0FD2Eh.3, pc_done       ; braking: either brake switch\n"
                     "        JB      0FD2Eh.4, pc_done\n")
-    pops = _replace(pops, "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n        BCLR    0FDF8h.4\n        RET\n"
+    pops = _replace(pops, "        BCLR    0FDF8h.3\n        BCLR    0FDF8h.4\n        RET\n"
                           "pt_overrun:\n        JNB     0FDF8h.3, pt_done\n",
-                    "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n"
+                    "        BCLR    0FDF8h.3\n"
                     "        JB      0FD2Eh.6, pt_rearm_done ; the clutch in: not a press that re-arms the pops\n"
                     "        BCLR    0FDF8h.4\npt_rearm_done:\n        RET\n"
                     "pt_overrun:\n        JB      0FD2Eh.3, pt_brake\n        JNB     0FD2Eh.4, pt_no_brake\n"
                     "pt_brake:\n        BSET    0FDF8h.4                ; braking uses up this lift's pops\n"
-                    "        BCLR    0FDF8h.3\n        BCLR    POPS_STAB\n        RET\n"
+                    "        BCLR    0FDF8h.3\n        RET\n"
                     "pt_no_brake:\n        JNB     0FDF8h.3, pt_done\n")
     # Task 6, the blip's outputs. A pops window and a blip never overlap (the blip needs FDF8.3 clear, and the clutch
     # ends a window), so each hook checks the blip first. The throttle store adds BLIP_ADD while GUARD is clear; the gate
@@ -361,6 +335,36 @@ def prepare(image):
                     "        MOV     R5, [R0+]\n        MOV     R4, [R0+]\n        MOV     R3, [R0+]\n        MOV     R2, [R0+]\n"
                     "        POP     0FF10h                  ; PSW\n"
                     "        JMPS    0Bh, 05C84h\n")
+
+    # V10.3, the hand-over (the V10.2 review's pedal case, found again on 2026-11-08 at another phase): when the stock code
+    # takes the spark back from the blip, the pedal pressed (out of overrun) or the blip over, its angle could jump 9 deg
+    # at once from the cap's, and an advance written while a coil charges cuts that charge (1.78 ms of 2.34). Each blip
+    # write sets SPK_RAMP; after the blip, the stock angle rises at most 807F / 4 steps a spark from the last angle
+    # written, as the cap's return does, until it reaches the stock one; a retard is whole at once. Below 25 x 32 rpm the
+    # ramp ends (a stray bit at power-up cannot hold a start's advance back). A pops window fires its own angle.
+    pops = _replace(pops, "pops_spark:\n        JB      BLIP_ON, psk_blip\n        JNB     0FDF8h.3, psk_stock\n"
+                          "        JNB     0FD2Ch.11, psk_stock\n        PUSH    0FF10h                  ; PSW\n",
+                    "pops_spark:\n        JB      BLIP_ON, psk_blip\n        JNB     0FDF8h.3, psk_ramp\n"
+                    "        JNB     0FD2Ch.11, psk_ramp\n        BCLR    SPK_RAMP                ; V10.3: a pops window fires its own angle\n"
+                    "        PUSH    0FF10h                  ; PSW\n")
+    pops = _replace(pops, "psk_blip:\n        JNB     0FD2Ch.11, psk_stock\n",
+                    "psk_blip:\n        JNB     0FD2Ch.11, psk_ramp     ; V10.3: out of overrun the stock angle comes back ramped\n")
+    pops = _replace(pops, "psk_write:\n        MOVB    BLIP_SPK, RL4\n",
+                    "psk_write:\n        BSET    SPK_RAMP                ; V10.3: the stock angle will come back from this one\n"
+                    "        MOVB    BLIP_SPK, RL4\n")
+    pops = _replace(pops, "\n; ---- the AFR branch (0B:D434",
+                    "psk_ramp:                               ; V10.3: the hand-over from the blip to the stock angle\n"
+                    "        JNB     SPK_RAMP, psk_stock\n        PUSH    0FF10h                  ; PSW\n"
+                    "        MOV     [-R0], R3\n        MOV     [-R0], R4\n        MOV     [-R0], R5\n"
+                    "        MOVBZ   R3, 807Fh\n        CMP     R3, #25\n        JMPR    ULT, pr_end            ; under 800 rpm\n"
+                    "        SHR     R3, #2\n        MOVBZ   R5, BLIP_SPK\n        ADD     R3, R5                  ; the most advance now\n"
+                    "        MOVBZ   R4, 0E2B5h              ; the stock angle\n        CMP     R4, R3\n"
+                    "        JMPR    ULE, pr_end             ; reached: the stock angle from here\n"
+                    "        MOVB    BLIP_SPK, RL3\n        MOVB    0E2B5h, RL3\n        MOV     R4, #0\n        MOVB    0E2B4h, RL4\n"
+                    "        JMPR    UC, pr_out\npr_end:\n        BCLR    SPK_RAMP\npr_out:\n"
+                    "        MOV     R5, [R0+]\n        MOV     R4, [R0+]\n        MOV     R3, [R0+]\n"
+                    "        POP     0FF10h                  ; PSW\n        JMPS    0Bh, 05C84h\n"
+                    "\n; ---- the AFR branch (0B:D434")
 
     (ROOT / "patches/live_overlay_v10.asm").write_text(source)
     (ROOT / "patches/live_overlay_v10_feature_helpers.inc").write_text(helpers)

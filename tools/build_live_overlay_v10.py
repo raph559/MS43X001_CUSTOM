@@ -1,4 +1,4 @@
-"""Build the separate V10.2 image: V9 plus pops' throttle stabs and the downshift blip, with the in-cut re-entry hook at 0x2AAA0."""
+"""Build the separate V10.3 image: V9 plus the downshift blip (V10.3: no pops stabs), with the in-cut re-entry hook at 0x2AAA0."""
 import json
 import re
 import subprocess
@@ -13,7 +13,7 @@ from live_overlay_v6_features import GROUPS, READS, stubs, hooks
 
 ROOT = Path(build.REPO)
 build.SOURCE = str(ROOT / "patches/live_overlay_v10.asm")
-build.DEFAULT_OUT = str(ROOT / "build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_2.bin")
+build.DEFAULT_OUT = str(ROOT / "build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_3.bin")
 build.DEFAULT_FIXTURE = str(ROOT / "sim/tests/Ms43Sim.Tests/fixtures/live_overlay_v10.hex")
 
 

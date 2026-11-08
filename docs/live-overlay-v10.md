@@ -387,3 +387,34 @@ the source contract.
   tests in four chunks, overlay 379/381 (the two known failures of the first overlay, V1, on the quick key cycle:
   P0339), pops 338/338, watch 136/136 and the V10 rest 159/159 (the five drive classes that had passed on the same
   tree an hour before were left out); the app's UI suite in six chunks, 767/767.
+
+## V10.3 (2026-11-08): no stabs, and the spark ramped back after a blip
+
+The owner: "remove the stab logic from the pops", keeping V10.2's real AFR, enrichment and blip. Header minor 3
+(`030Ah`); program identity `b7f5979312951b091c019e2d433b32e01de2c001e861f63ffae679c646603440`; car build
+`build/CAR_43X001_SP95_STAGE1_LIVE_OVERLAY_V10_3.bin` (SHA-256 starts `2e93c284354a2294`).
+
+- **No stabs.** `stab_start`, `stab_tick` and `rise_allowance` are gone, and so is the stab's extra in the throttle
+  store. A pops window holds pops' own opening (138 byte 6) for its whole time and ends at V8's 160 rpm rise, in the
+  tick and in the overrun-cut gate. `POPS_T`, `POPS_PH` and the stab count at `09FBFh` are free.
+- **Group 139 is reserved.** It keeps its catalogue entry (`0033:3F88`, 8 bytes, flags 2), so 140..142 keep their
+  IDs; every byte is limited to 0 and flashed as 0, so a copy with any other value is refused (reason 4). The app shows
+  no stab setting on a V10.3 ECU or bin, and its log no longer has the `pops_stabs` column.
+- **The hand-over ramp.** FDF8.7, the old stab bit, is `SPK_RAMP`: every blip spark write sets it. When the stock
+  code takes the spark back (the pedal pressed, out of overrun, or the blip over), its advance rises at most 807F / 4
+  steps of 0.375 deg a spark from the last angle the blip wrote, as the cap's return does, until it reaches the stock
+  angle; a retard is whole at once, and below 800 rpm the ramp ends. A pops window fires its own angle and clears it.
+  Why: on the corrected `blip-braking-pedal` drive the stock code jumped from the cap's -23.6 deg to -14.5 deg in one
+  spark, and cylinder 3 fired after 1.78 ms of its 2.34 ms charge (V10.2 does the same at another phase).
+- **The braking drives.** `er_ad` (path 85) is the crank-signal check, not the ADC: the crank interrupt writes `E5A6`
+  (0E:4B1A), which sets FD26.1, then FD2A.10, reported at 0D:7006. `blip-braking` and `blip-braking-pedal` scripted
+  `rpm=1300..2700` at the clutch press while the engine turned about 2,010 rpm, an instant 700 rpm drop that the crank
+  check flags only at some phases (V10.3's shorter code reached one; 21 nudged timings were clean on both builds).
+  Both drives now start the ramp at 2,010 rpm.
+- **Tests** (only the affected classes, 2026-11-08): emulator `PopsWindowTests` (was `PopsStabTests`),
+  `TorqueGuardTests`, `OverlayV10Tests`, `PopsBrakeTests`, `BlipTests`, `V10DriveTests`, `V10CostTests`,
+  `PopsRealAfrDriveTests` and `BlipPedalDriveTests` (with `AfterThePressTheStockAngleComesBackRamped`): 255/255. App:
+  Core `OverlayV10`, `OverlayV101`, `OverlayV103`, `DiagnosticPayloadSource`, `FunFeatures`, `OverlayClient` 187/187;
+  UI `V10GroupsTests`, `DiagnosticLogTests`, `FunTests`, `LiveTuningTests` 43/43. The full suites were not run.
+- **Public build:** MS43X001_CUSTOM's `overlay/build_overlay.py` gives the same program identity on the car file and on
+  the X001 release bin; on the car file it differs from the car build only at `0x70E14`, `0x7DE64` and `0x73FE0`.

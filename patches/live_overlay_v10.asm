@@ -48,7 +48,7 @@ REP_DATA        EQU     0F750h
         ORG     0CB544h
 
 header: DB      "LTOV"                  ; the signature the app reads with DS2 command 06 at 0C:B544
-        DW      OVL_VERSION + 0200h     ; V10.2: the high byte is the minor
+        DW      OVL_VERSION + 0300h     ; V10.3: the high byte is the minor
         DW      code_start & 0FFFFh
         DW      code_end & 0FFFFh
         DW      data_end & 0FFFFh
@@ -2604,7 +2604,7 @@ tables:
         DW      001Fh, 024DCh, 288, 4 ; 136 ip_tps_sp_pvs__pvs__n
         DW      001Fh, 025FCh, 32, 4 ; 137 ip_tps_sp_pvs_add_low_n__n_dif__
         DW      0033h, 03F80h, 8, 2 ; 138 pops
-        DW      0033h, 03F88h, 8, 2 ; 139 pops stabs
+        DW      0033h, 03F88h, 8, 2 ; 139 reserved (V10.3: no stabs)
         DW      0033h, 03F90h, 8, 2 ; 140 downshift blip
         DW      0033h, 03F98h, 8, 2 ; 141 downshift blip: gears and tap
         DW      0033h, 03FA0h, 8, 2 ; 142 downshift blip: gear ratios
@@ -3179,9 +3179,9 @@ crc_zero_powers:
         ORG     0CFF80h
 pops_defaults:
         DB      000h, 028h, 000h, 046h, 07Dh, 09Eh, 01Eh, 014h
-; 139 pops stabs: a 2.0 s load, +5.0 deg TPS stabs of 150 ms, 250 ms gaps, a 480 rpm rise once stabbing.
+; 139 reserved (V10.3: the stabs are gone).
 stab_defaults:
-        DB      014h, 019h, 00Fh, 019h, 00Fh, 000h, 000h, 000h
+        DB      000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h
 ; 140 downshift blip: off, braking or tap, 30 km/h, 5,984 rpm, 1.5 s, 30.0 and 5.0 deg TPS, +20.25 deg.
 blip_defaults:
         DB      000h, 003h, 01Eh, 0BBh, 00Fh, 096h, 019h, 075h
