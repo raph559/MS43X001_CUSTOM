@@ -10,7 +10,7 @@ It lets [MS43 Tuner](https://github.com/raph559/MS43_TUNER) send maps and settin
 K-line, and adds pops & bangs on lift-off and an automatic downshift blip.
 
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
-[![Version: V10.3](https://img.shields.io/badge/overlay-V10.3-orange.svg)](overlay)
+[![Version: V10.4](https://img.shields.io/badge/overlay-V10.4-orange.svg)](overlay)
 [![Firmware: MS43X001](https://img.shields.io/badge/firmware-MS43X001%20(M54B25)-555.svg)](#compatibility)
 
 [What it adds](#what-it-adds) · [How it works](#how-it-works) · [Build your bin](#build-your-bin) · [Compatibility](#compatibility) · [Repository](#whats-in-this-repository)
@@ -18,10 +18,10 @@ K-line, and adds pops & bangs on lift-off and an automatic downshift blip.
 </div>
 
 > [!WARNING]
-> Experimental firmware. Every version ran in [MS43_EMULATOR](https://github.com/raph559/MS43_EMULATOR), which
-> runs the real MS43X001 code, on scripted drives, and V10.x runs in one car (E46 M54B25). It has not been
-> validated more widely. Keep your original bin, flash a build only if you can flash it back, and use the Fun
-> features only on a closed road or a track.
+> Experimental firmware. V10.4 has run in [MS43_EMULATOR](https://github.com/raph559/MS43_EMULATOR), which
+> executes the real MS43X001 code on scripted drives, and has also run in one E46 M54B25. Wider vehicle
+> validation is still pending. Keep your original bin, flash a build only if you can flash it back, and use
+> the Fun features only on a closed road or a track.
 
 ## What it adds
 
@@ -50,8 +50,7 @@ into the bin and flash it.
 - The build writes code only: the overlay block, the hook sites and the five checksums. Your maps and settings
   stay exactly as they are; the build checks it byte by byte.
 
-The full design, protocol and test records of each version are in [`docs/`](docs) and
-[LIVE_OVERLAY.md](LIVE_OVERLAY.md).
+What V10.4 does, its protocol and how it was checked are in [docs/live-overlay-v10.md](docs/live-overlay-v10.md).
 
 ## Build your bin
 
@@ -64,7 +63,7 @@ cd MS43X001_CUSTOM/overlay
 python -I build_overlay.py path/to/your_ms43x001.bin
 ```
 
-It writes `your_ms43x001-live-overlay-v10_3.bin` next to your bin, which it only reads. Flash the result with MS4X
+It writes `your_ms43x001-live-overlay-v10_4.bin` next to your bin, which it only reads. Flash the result with MS4X
 Flasher, then open it in MS43 Tuner: the Live tuning and Fun tabs find the overlay. The options and every check
 the build makes are in [overlay/README.md](overlay/README.md).
 
@@ -85,13 +84,10 @@ The calibration can be anything: your own tune is kept as it is.
 
 | Path | What |
 |:---|:---|
-| [`overlay/`](overlay) | **The current version (V10.3) and its code-only build.** Start here. |
-| [`patches/`](patches) | Earlier versions' assembly |
-| [`tools/`](tools) | The lab's generators and builders for each version |
-| [`docs/`](docs), [`LIVE_OVERLAY.md`](LIVE_OVERLAY.md), [`OVERLAY_BUILD.md`](OVERLAY_BUILD.md) | Each version's design, protocol and test records |
+| [`overlay/`](overlay) | **The current version (V10.4) and its code-only build.** Start here. |
+| [`docs/`](docs) | What V10.4 does, its protocol and how it was checked |
 
-The lab builders in `tools/` read the author's own bins, which are not published; use `overlay/build_overlay.py`.
-`patches/overlay.asm`, the very first patch, is a known-bad record: never build or flash it.
+Earlier versions are in the git history.
 
 ## Related projects
 
