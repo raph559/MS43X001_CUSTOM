@@ -64,10 +64,33 @@ find the overlay on the ECU and in the bin.
 
 ## The source
 
-[`src/live_overlay_v10.asm`](src/live_overlay_v10.asm) is the entry point; it includes the `.inc` files
-next to it. It is C167 assembly for AS, written with physical addresses and the firmware's DPP
-assumptions. It is generated in the author's lab from the earlier overlay versions, and published here
-as the full, buildable source.
+[`src/live_overlay.asm`](src/live_overlay.asm) is the only file the assembler is given. It holds the equates, the
+header, the flashed settings and the order of the parts, and includes the section files next to it. It is C167
+assembly for AS, written with physical addresses and the firmware's DPP assumptions. The order of the `INCLUDE`
+lines fixes every address, so moving one changes the bin.
+
+| File | What it holds |
+|---|---|
+| [`live_overlay_map_stubs.inc`](src/live_overlay_map_stubs.inc) | One stub per byte map, and the substitution of its live copy |
+| [`live_overlay_housekeeping.inc`](src/live_overlay_housekeeping.inc) | The 10 ms task: the ticks of pops, the guard, the blip and the watch, and the switch-off |
+| [`live_overlay_ds2.inc`](src/live_overlay_ds2.inc) | The DS2 `0x6D` handler and its commands (load, write, on, off, free, revert, status, patch) |
+| [`live_overlay_tables.inc`](src/live_overlay_tables.inc) | The tables' state: the switch-off, the directory and its overflow records |
+| [`live_overlay_patch_crc.inc`](src/live_overlay_patch_crc.inc) | The CRC a patch will give, from the CRC before it |
+| [`live_overlay_limiter.inc`](src/live_overlay_limiter.inc) | The rev limiter per gear |
+| [`live_overlay_feature_helpers.inc`](src/live_overlay_feature_helpers.inc) | The settings groups' addresses and validation |
+| [`live_overlay_feature_stubs.inc`](src/live_overlay_feature_stubs.inc) | Launch control, no-lift shift and rolling anti-lag reads (generated) |
+| [`live_overlay_word_stubs.inc`](src/live_overlay_word_stubs.inc) | The 16-bit maps' stubs (generated) |
+| [`live_overlay_pops.inc`](src/live_overlay_pops.inc) | Pops on lift-off, the real AFR targets, and the spark and throttle hooks the blip shares |
+| [`live_overlay_catalogue.inc`](src/live_overlay_catalogue.inc) | The catalogue: each table's flash page, offset, size and flags |
+| [`live_overlay_crc_zero_powers.inc`](src/live_overlay_crc_zero_powers.inc) | CRC advance matrices (generated) |
+| [`live_overlay_watch.inc`](src/live_overlay_watch.inc) | The watched map |
+| [`live_overlay_triggers.inc`](src/live_overlay_triggers.inc) | Switch triggers for launch control, no-lift shift and anti-lag |
+| [`live_overlay_blip_groups.inc`](src/live_overlay_blip_groups.inc) | Groups 139 to 142: limits, reads and validation |
+| [`live_overlay_blip.inc`](src/live_overlay_blip.inc) | The torque guard and the downshift blip |
+| [`live_overlay_feature_hooks.inc`](src/live_overlay_feature_hooks.inc) | The patched sites of the LC, NLS and RAL reads (generated) |
+| [`live_overlay_hooks.inc`](src/live_overlay_hooks.inc) | Every other patched site in the firmware |
+
+The files marked generated come from scripts in the author's lab; the rest is edited by hand.
 
 ## License
 

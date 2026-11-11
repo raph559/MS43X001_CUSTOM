@@ -1,5 +1,5 @@
 ; Torque guard and downshift blip (docs/live-overlay-v10.md).
-; Groups 140..142 use v10_setting; state is in live_overlay_v10_pops.inc; group 139 is reserved.
+; Groups 140..142 use v10_setting; state is in live_overlay_pops.inc; group 139 is reserved.
 
 ; R4: opening in 0.2 deg TPS steps. Returns R4 in 86A4 units, approximately 109.25 per step
 ; (16387 at 30.0 deg TPS). Preserves every other register; changes PSW.

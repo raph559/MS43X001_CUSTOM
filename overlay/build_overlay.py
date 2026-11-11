@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import ms43_checksums  # noqa: E402
 
-SOURCE = os.path.join(HERE, "src", "live_overlay_v10.asm")
+SOURCE = os.path.join(HERE, "src", "live_overlay.asm")
 WRITE_LIST = os.path.join(HERE, "write_list.json")
 SIZE = 0x80000
 BLOCK = (0x4B544, 0x4FFE6)          # MS43X001's free flash, up to the programming signature

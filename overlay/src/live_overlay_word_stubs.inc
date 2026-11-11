@@ -1,4 +1,4 @@
-; V7 u16 call-site adapters. The original interpolation and axis code stays in flash.
+; u16 call-site adapters. The original interpolation and axis code stays in flash.
 word_map127:
         PUSH 0FF10h
         MOV [-R0], R4
